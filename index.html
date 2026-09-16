@@ -176,12 +176,25 @@
   .hs span{color:var(--ink-3);font-size:12.5px;margin-top:6px;display:block}
 
   /* ---------- 粘性 tab ---------- */
-  .tabs{display:flex;gap:1px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
-    flex:1 1 auto;min-width:0;scroll-snap-type:x proximity;
-    -webkit-overflow-scrolling:touch}
-  .tabs > :first-child{margin-left:auto}
-  .tabs > :last-child{margin-right:auto}
-  .tab{scroll-snap-align:center}
+  .tabs{display:flex;gap:1px;flex:1 1 auto;min-width:0;justify-content:center}
+  /* 窄屏菜单按钮：默认藏着，标签行放不下时才出现 */
+  .navmenu-btn{display:none;align-items:center;gap:8px;flex:0 0 auto;cursor:pointer;
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
+    color:var(--ink);border-radius:var(--r-pill);padding:8px 14px;font-size:13.5px;
+    font-weight:550;transition:.16s}
+  .navmenu-btn:hover{background:rgba(255,255,255,.12)}
+  .navmenu-btn svg{width:16px;height:16px;flex:none}
+  .navmenu-btn span{white-space:nowrap}
+  /* 下拉面板 */
+  .navsheet{display:none;position:fixed;top:78px;left:50%;transform:translateX(-50%) translateY(-6px);
+    z-index:79;width:min(340px,calc(100vw - 28px));padding:8px;border-radius:var(--r-l);
+    opacity:0;pointer-events:none;transition:.18s cubic-bezier(.2,.8,.3,1)}
+  .navsheet.open{display:block;opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+  .ns-item{display:block;width:100%;text-align:left;background:none;border:none;cursor:pointer;
+    color:var(--ink-2);font-size:14.5px;font-weight:500;padding:11px 15px;
+    border-radius:11px;transition:.14s}
+  .ns-item:hover{background:rgba(255,255,255,.08);color:#fff}
+  .ns-item.on{background:rgba(255,255,255,.14);color:#fff;font-weight:650}
   .tabs::-webkit-scrollbar{display:none}
   .tab{position:relative;padding:8px 13px;font-size:13.5px;color:var(--ink-2);background:none;border:none;
     border-radius:var(--r-pill);white-space:nowrap;transition:.18s;font-weight:500;cursor:pointer;
@@ -413,26 +426,28 @@
     transition:.24s cubic-bezier(.2,.8,.3,1);z-index:99;pointer-events:none;box-shadow:var(--sh-float)}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-  /* 导航让位：英文标签更长，按宽度逐级收缩 */
+  /* 导航让位：先收紧，再换形态——不做横滑，看不见的标签等于不存在 */
   @media(max-width:1040px){
     .nav{gap:10px;padding:8px 8px 8px 16px}
     .tab{padding:8px 11px;font-size:13px}
   }
-  @media(max-width:900px){
-    /* 下载按钮收成图标，省出约 70px */
+  /* 英文标签更长，880 就装不下；中文能撑到 780 */
+  html[lang="en"] .nav{--nav-collapse:880px}
+  @media(max-width:880px){
+    html[lang="en"] .tabs{display:none}
+    html[lang="en"] .navmenu-btn{display:inline-flex}
+  }
+  @media(max-width:780px){
+    .tabs{display:none}
+    .navmenu-btn{display:inline-flex}
     .nav .btn span{display:none}
     .nav .btn{padding:9px 12px}
   }
-  @media(max-width:720px){
-    /* 溢出时从左开始滑，不再居中 */
-    .tabs > :first-child{margin-left:0}
-    .tabs > :last-child{margin-right:0}
-    .lang button{padding:5px 8px;font-size:11.5px}
-  }
-  @media(max-width:560px){
-    /* 窄屏隐藏 logo 文字，把整行让给 tabs */
-    .nav .logo{display:none}
-    .nav{padding:8px 10px}
+  @media(max-width:480px){
+    .navmenu-btn span{display:none}
+    .navmenu-btn{padding:9px 12px}
+    .lang button{padding:5px 9px;font-size:11.5px}
+    .nav{padding:8px 12px;gap:8px}
   }
 
   @media(max-width:880px){
@@ -455,6 +470,7 @@
 <svg style="display:none">
   <symbol id="i-dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></symbol>
   <symbol id="i-arrow-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="m12 6 6 6-6 6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
@@ -480,11 +496,24 @@
     <button class="tab" data-p="reviews"></button>
     <button class="tab" data-p="credits"></button>
   </div>
+  <button class="navmenu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false">
+    <svg><use href="#i-menu"/></svg><span id="menu-cur"></span>
+  </button>
   <div class="lang" id="lang">
     <button data-lang="zh">中</button><button data-lang="en">EN</button>
   </div>
   <button class="btn btn-light" onclick="downloadZip()"><svg><use href="#i-dl"/></svg><span id="nav-dl"></span></button>
 </nav>
+<div class="navsheet glass" id="navsheet">
+  <button class="ns-item" data-p="overview"></button>
+  <button class="ns-item" data-p="detail"></button>
+  <button class="ns-item" data-p="install"></button>
+  <button class="ns-item" data-p="quality"></button>
+  <button class="ns-item" data-p="eval"></button>
+  <button class="ns-item" data-p="versions"></button>
+  <button class="ns-item" data-p="reviews"></button>
+  <button class="ns-item" data-p="credits"></button>
+</div>
 
 <div class="stage">
 <div class="hero">
@@ -1088,6 +1117,8 @@ function render(){
 
   // 导航与 hero
   $$('.tab').forEach((b,i)=>b.textContent=t.tabs[i]);
+  $$('.ns-item').forEach((b,i)=>b.textContent=t.tabs[i]);
+  syncNavMenu();
   set('#nav-dl',t.dl); set('#hero-dl',t.dlBig); set('#hero-ins',t.howInstall);
   set('#hero-l1',t.heroL1); set('#hero-l2',t.heroL2);
   set('#tagline',pick(S.plugin,'tagline'));
@@ -1165,8 +1196,7 @@ function render(){
   $('#foot-license').innerHTML=`${LANG==='zh'?'基于':'Based on'} <a href="${c.upstream.repo}" target="_blank" rel="noopener">${c.upstream.author}/ai-pm</a> · <a href="${c.upstream.licenseDeed}" target="_blank" rel="noopener">${c.upstream.license}</a>`;
 
   renderEval(); renderQuality(); renderReviews(); renderCredits();
-  requestAnimationFrame(ensureTabVisible);
-  setTimeout(ensureTabVisible, 120);
+
 }
 
 function reviewAvg(){return S.reviews.length?(S.reviews.reduce((a,r)=>a+(r.feature+r.effect+r.stability)/3,0)/S.reviews.length):0;}
@@ -1319,25 +1349,36 @@ async function submitReview(){
   }catch(e){toast(t.toastFail);}
 }
 
-function ensureTabVisible(){
-  const bar=$('.tabs'), on=$('.tab.active');
-  if(!bar||!on) return;
-  const of = bar.scrollWidth > bar.clientWidth + 1;
-  bar.classList.toggle('of', of);
-  if(!of) return;
-  const l=on.offsetLeft, r=l+on.offsetWidth;
-  if(l < bar.scrollLeft+8) bar.scrollTo({left:Math.max(0,l-16),behavior:'smooth'});
-  else if(r > bar.scrollLeft+bar.clientWidth-8)
-    bar.scrollTo({left:r-bar.clientWidth+16,behavior:'smooth'});
+/* 菜单按钮显示当前分区名，收起时用户也知道自己在哪 */
+function syncNavMenu(){
+  const on=$('.tab.active'); if(!on) return;
+  const p=on.dataset.p, label=on.textContent;
+  const cur=$('#menu-cur'); if(cur) cur.textContent=label;
+  $$('.ns-item').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
+}
+function closeNavSheet(){
+  $('#navsheet')?.classList.remove('open');
+  $('#menuBtn')?.setAttribute('aria-expanded','false');
 }
 function go(p){
   $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.p===p));
-  ensureTabVisible();
+  syncNavMenu(); closeNavSheet();
   $$('.pane').forEach(x=>x.classList.remove('active'));
   $('#pane-'+p).classList.add('active');
   scrollTo({top:$('.wrap').getBoundingClientRect().top+scrollY-92,behavior:'smooth'});
 }
 $$('.tab').forEach(t=>t.onclick=()=>go(t.dataset.p));
+$$('.ns-item').forEach(t=>t.onclick=()=>go(t.dataset.p));
+$('#menuBtn').onclick=e=>{
+  e.stopPropagation();
+  const s=$('#navsheet'), open=!s.classList.contains('open');
+  s.classList.toggle('open', open);
+  $('#menuBtn').setAttribute('aria-expanded', String(open));
+};
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#navsheet') && !e.target.closest('#menuBtn')) closeNavSheet();
+});
+addEventListener('keydown', e=>{ if(e.key==='Escape') closeNavSheet(); });
 $$('[data-jump]').forEach(a=>a.onclick=()=>go(a.dataset.jump));
 $$('#lang button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
 document.addEventListener('click',e=>{
@@ -1363,7 +1404,7 @@ function downloadZip(){
   setTimeout(()=>{toast(T().toastDl);fetch('/api/store').then(r=>r.json()).then(s=>{
     S=s;const e=$('#hs-dl'); if(e) e.textContent=s.downloads;});},600);}
 addEventListener('resize', ()=>{clearTimeout(window.__rz);
-  window.__rz=setTimeout(ensureTabVisible,150);});
+  window.__rz=setTimeout(closeNavSheet,150);});
 load();
 </script>
 </body>
