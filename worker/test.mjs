@@ -302,7 +302,8 @@ d = await r.json();
 ok(trCalls === 3, '三句话拆成三次调用', '实际 ' + trCalls);
 
 // 37 每句都出现在译文里，一句不丢
-const allIn = ['The skill split is clean.','I can call pm-prd alone.','No extra glue needed.']
+// 补标点会把英文句点换成中文句号，所以比对句子主体而非完整标点
+const allIn = ['The skill split is clean','I can call pm-prd alone','No extra glue needed']
   .every(sent => d.text.includes(sent));
 ok(allIn, '每句都在译文里，没有丢句', d.text.slice(0,90));
 

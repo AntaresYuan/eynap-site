@@ -88,7 +88,12 @@ wrangler d1 execute eynap --remote --file=seed.sql
 ## 本地测试
 
 ```bash
-node test.mjs               # 用 node:sqlite 模拟 D1 与 AI，28 项逻辑测试
+node test.mjs               # 端到端逻辑，39 项（模拟 D1 与 AI，不联网）
+node test-translate.mjs     # 翻译链路边界，72 项（分句/术语/清洗/拼接）
+
+# 线上真实模型抽查（会消耗 neurons）
+bash seed-probe.sh          # 直接写库插入样本，绕过反垃圾限流
+node probe-live.mjs         # 逐条翻译并核对术语与句数
 ```
 
 不需要 Cloudflare 账号，也不联网。
