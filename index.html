@@ -1078,11 +1078,46 @@ const stars=n=>'★'.repeat(Math.round(n))+'☆'.repeat(5-Math.round(n));
    说明：纯前端拿不到 IP 归属地，navigator.language 由系统区域设置决定，
    在真实使用中与所在地高度相关，且不需要请求任何第三方定位服务。 */
 let LANG='zh';
+/* 中文区：这些地区默认进中文版 */
+const ZH_REGIONS = ['CN','HK','MO','TW','SG'];
+
+/* 同步判断：手动选过 > 浏览器语言。先用它立刻渲染，避免白屏等网络。 */
 function detectLang(){
   const saved=localStorage.getItem('eynap-lang');
   if(saved==='zh'||saved==='en') return saved;
+  const cached=sessionStorage.getItem('eynap-geo');
+  if(cached) return ZH_REGIONS.includes(cached) ? 'zh' : 'en';
   const nav=(navigator.languages&&navigator.languages[0])||navigator.language||'';
   return /^zh\b/i.test(nav) ? 'zh' : 'en';
+}
+
+/* 异步按 IP 归属地校正。只在用户从未手动选过语言时生效。
+   单一数据源会误判（同一网络下 Cloudflare 报 JP、ipapi 报 CN），所以并行取两家，
+   任一判为中文区就按中文，宁可多显示中文也不让中文用户看到英文。 */
+async function refineLangByGeo(){
+  if(localStorage.getItem('eynap-lang')) return;   // 手动选择优先，不覆盖
+  if(sessionStorage.getItem('eynap-geo')) return;  // 本次会话已测过
+  const probes = [
+    fetch('https://www.cloudflare.com/cdn-cgi/trace')
+      .then(r=>r.text()).then(t=>(t.match(/loc=(\w+)/)||[])[1]),
+    fetch('https://ipapi.co/country/')
+      .then(r=>r.ok?r.text():Promise.reject()).then(t=>t.trim())
+  ];
+  let codes=[];
+  try{
+    codes = (await Promise.allSettled(probes))
+      .filter(x=>x.status==='fulfilled' && x.value)
+      .map(x=>String(x.value).toUpperCase());
+  }catch(e){ return; }
+  if(!codes.length) return;                        // 全失败就保持浏览器语言判断
+  const want = codes.some(c=>ZH_REGIONS.includes(c)) ? 'zh' : 'en';
+  sessionStorage.setItem('eynap-geo', codes[0]);
+  if(want !== LANG){
+    LANG = want;
+    document.documentElement.lang = want==='zh' ? 'zh-CN' : 'en';
+    $$('#lang button').forEach(b=>b.classList.toggle('on', b.dataset.lang===want));
+    render();
+  }
 }
 function T(){return I18N[LANG];}
 const pick=(o,k)=>LANG==='en'&&o[k+'En']?o[k+'En']:o[k];
@@ -1133,6 +1168,7 @@ async function load(){
   render();
   if(window.__OFFLINE__) toast(T().offline);
   fetchDownloads();
+  refineLangByGeo();
 }
 
 /* ---------- 全量渲染（切语言时整页重画） ---------- */
