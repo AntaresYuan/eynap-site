@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eynap · Everything You Need as an AI PM</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23fff'/%3E%3Ctext x='16' y='23' font-family='-apple-system,Helvetica,Arial' font-size='21' font-weight='700' text-anchor='middle' fill='%23000'%3EE%3C/text%3E%3C/svg%3E">
+<style>
+  /* ============================================================
+     全黑 + 幻动微光 + Liquid Glass
+     玻璃只用于浮在内容之上的功能层（悬浮胶囊导航 / 粘性 tab / hero 操作条）
+     内容层用实心暗面板，遵循 Apple HIG「不要在内容层用 Liquid Glass」
+     ============================================================ */
+  :root{
+    --void:#000000;          /* 纯黑底 */
+    --panel:#0e1014;         /* 内容面板 */
+    --panel-2:#13161c;       /* 次级面板 */
+    --line:rgba(255,255,255,.09);
+    --line-2:rgba(255,255,255,.055);
+
+    --ink:#f5f7fa;           /* 主文字 */
+    --ink-2:#a8b0bd;         /* 次级 */
+    --ink-3:#6f7885;         /* 三级 */
+
+    --brand:#4080FF;         /* Arco 主色亮态，暗底上用 hover 档更清晰 */
+    --brand-deep:#165DFF;
+    --ok:#23c343; --warn:#ff9a2e; --err:#f76965;
+
+    --r-s:10px; --r-m:14px; --r-l:18px; --r-pill:100px;
+    /* 阴影取 doubao work 的冷灰调，不是死黑 */
+    --sh-float:0 20px 30px rgba(6,10,18,.55);
+    --sh-panel:0 1px 0 rgba(255,255,255,.03) inset;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;background:var(--void)}
+  body{font-family:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,
+    "PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+    background:var(--void);color:var(--ink);font-size:14px;line-height:1.62;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  button,input,textarea{font-family:inherit}
+  ::selection{background:rgba(64,128,255,.3)}
+  .mono{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-variant-ligatures:none}
+  svg{display:block}
+
+  /* ---------- 幻动微光：整站背景，固定不随滚动 ---------- */
+  .aurora{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .aurora i{position:absolute;display:block;border-radius:50%;filter:blur(100px);opacity:.42;
+    will-change:transform}
+  .aurora .a1{width:900px;height:660px;left:14%;top:-22%;
+    background:radial-gradient(circle,rgba(64,128,255,.60),transparent 68%);
+    animation:drift1 26s ease-in-out infinite}
+  .aurora .a2{width:760px;height:560px;right:6%;top:-8%;
+    background:radial-gradient(circle,rgba(22,93,255,.42),transparent 66%);
+    animation:drift2 32s ease-in-out infinite}
+  .aurora .a3{width:680px;height:540px;left:26%;top:42%;
+    background:radial-gradient(circle,rgba(30,120,190,.26),transparent 68%);
+    animation:drift3 38s ease-in-out infinite}
+  @keyframes drift1{0%,100%{transform:translate3d(0,0,0) scale(1)}
+    50%{transform:translate3d(90px,60px,0) scale(1.12)}}
+  @keyframes drift2{0%,100%{transform:translate3d(0,0,0) scale(1.06)}
+    50%{transform:translate3d(-80px,50px,0) scale(.94)}}
+  @keyframes drift3{0%,100%{transform:translate3d(0,0,0) scale(1)}
+    50%{transform:translate3d(60px,-70px,0) scale(1.15)}}
+  /* 细网格，只在上方淡出，制造空间纵深 */
+  .aurora::after{content:"";position:absolute;inset:0;opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+    background-size:72px 72px;
+    -webkit-mask-image:radial-gradient(1150px 640px at 50% 10%,#000,transparent 78%);
+            mask-image:radial-gradient(1150px 640px at 50% 10%,#000,transparent 78%)}
+  @media (prefers-reduced-motion:reduce){.aurora i{animation:none}html{scroll-behavior:auto}}
+
+  /* ---------- Liquid Glass：唯一定义，只给功能层 ---------- */
+  .glass{position:relative;
+    background:rgba(255,255,255,.055);
+    -webkit-backdrop-filter:blur(22px) saturate(180%);
+    backdrop-filter:blur(22px) saturate(180%);
+    border:1px solid rgba(255,255,255,.10);
+    box-shadow:var(--sh-float);
+  }
+  /* 镜面高光：上缘亮、下缘消失，不是整圈发光描边 */
+  .glass::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
+    background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,0) 46%);
+    -webkit-mask:linear-gradient(#000,#000) content-box,linear-gradient(#000,#000);
+    -webkit-mask-composite:xor;mask-composite:exclude;padding:1px}
+  .glass>*{position:relative;z-index:1}
+  @media (prefers-reduced-transparency:reduce){
+    .glass{background:#14181f;backdrop-filter:none;-webkit-backdrop-filter:none}}
+
+  /* ---------- 悬浮胶囊导航 ---------- */
+  .nav{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:80;width:min(1100px,calc(100vw - 28px));
+    display:flex;align-items:center;gap:14px;padding:8px 8px 8px 20px;border-radius:var(--r-pill);
+    max-width:calc(100vw - 32px)}
+  .nav .logo{display:flex;align-items:baseline;gap:10px;flex:none}
+  /* 文字标识：字形本身即标识，不外挂图标 */
+  .wm{font-size:19px;font-weight:700;letter-spacing:-.035em;color:#fff;line-height:1;
+    font-feature-settings:"ss01" 1}
+  .wm-sub{display:none}
+  .nav .btn{padding:8px 17px;border-radius:var(--r-pill);flex:none}
+
+  /* ---------- 语言切换 ---------- */
+  .lang{display:flex;gap:2px;padding:3px;border-radius:var(--r-pill);flex:none;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+  .lang button{border:none;background:none;color:var(--ink-3);font-size:12px;font-weight:600;
+    padding:5px 10px;border-radius:var(--r-pill);cursor:pointer;transition:.16s;line-height:1}
+  .lang button:hover{color:#fff}
+  .lang button.on{color:#fff;background:rgba(255,255,255,.14);
+    box-shadow:0 1px 0 rgba(255,255,255,.2) inset}
+
+  /* ---------- 版权与鸣谢 ---------- */
+  .cred{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:22px 25px}
+  .cred+.cred{margin-top:10px}
+  .cred p{color:var(--ink-2);font-size:14px;line-height:1.75}
+  .cred p+p{margin-top:11px}
+  .cred-head{display:flex;align-items:center;gap:13px;padding-bottom:17px;margin-bottom:17px;
+    border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .cav{width:38px;height:38px;border-radius:50%;flex:none;
+    background:linear-gradient(140deg,#4080FF,#1a5fd0)}
+  .cname{font-size:15.5px;font-weight:650}
+  .crole{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+  .cbtn{display:inline-flex;align-items:center;gap:7px;margin-left:auto;font-size:13px;
+    padding:8px 15px;border-radius:var(--r-s);border:1px solid var(--line);
+    background:rgba(255,255,255,.05);color:var(--ink);transition:.16s;white-space:nowrap}
+  .cbtn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.24)}
+  .cbtn svg{width:15px;height:15px}
+  .cbtns{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center}
+  .cbtns .cbtn{margin-left:0}
+  .cnote{font-size:12.5px;color:var(--ink-3);line-height:1.6}
+  .lic{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+  .lic-tag{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:13px;font-weight:700;
+    padding:8px 14px;border-radius:9px;background:rgba(64,128,255,.14);color:#87abff;
+    border:1px solid rgba(64,128,255,.24);flex:none}
+  .lic-body{flex:1;min-width:260px}
+  .lic-name{font-size:14px;font-weight:600;margin-bottom:11px}
+  .lic-body ul{padding-left:17px;color:var(--ink-2);font-size:13.5px}
+  .lic-body li{margin:6px 0}.lic-body li b{color:var(--ink)}
+  .clink{display:inline-block;margin-top:13px;font-size:13px;color:#87abff}
+  .clink:hover{text-decoration:underline}
+  .thanks p{font-size:14.5px;color:var(--ink-2)}
+  .flic{font-size:12.5px;color:var(--ink-3);margin-top:5px}
+  .flic a{color:var(--ink-2);text-decoration:underline;text-underline-offset:2px}
+  .flic a:hover{color:#fff}
+
+  /* ---------- 按钮 ---------- */
+  .btn{display:inline-flex;align-items:center;gap:7px;border-radius:var(--r-s);padding:9px 16px;
+    font-size:13.5px;font-weight:550;border:1px solid transparent;cursor:pointer;transition:.18s;white-space:nowrap}
+  .btn svg{width:14px;height:14px;flex:none}
+  .btn-light{background:#fff;color:#000;box-shadow:0 2px 10px -2px rgba(0,0,0,.45)}
+  .btn-light:hover{background:#e9edf3;transform:translateY(-1px);box-shadow:0 6px 18px -4px rgba(0,0,0,.5)}
+  .btn-line{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.16);color:var(--ink)}
+  .btn-line:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.3)}
+  .btn-lg{padding:13px 26px;font-size:15px;border-radius:12px}
+  .btn-lg svg{width:16px;height:16px}
+
+  /* ---------- 内容容器 ---------- */
+  .stage{position:relative;z-index:1}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 26px 100px}
+  .main{padding-top:4px}
+
+  /* ---------- hero：整屏叙事 ---------- */
+  .hero{position:relative;padding:176px 26px 0;text-align:center}
+  .hero-in{max-width:1040px;margin:0 auto;padding-bottom:88px}
+  .hero h1{font-size:clamp(42px,6.4vw,76px);line-height:1.04;font-weight:680;letter-spacing:-.038em}
+  .hero h1 .l2{background:linear-gradient(96deg,#ffffff 8%,#9dc0ff 52%,#4c86e8 98%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero-sub{margin-top:26px;max-width:640px;margin-left:auto;margin-right:auto;
+    color:var(--ink-2);font-size:17.5px;line-height:1.72}
+  .hero-bar{margin-top:40px;display:inline-flex;align-items:center;gap:10px;padding:10px;border-radius:var(--r-l)}
+  .hero-stats{margin-top:74px;display:grid;grid-template-columns:repeat(4,1fr);
+    border-top:1px solid var(--line);max-width:860px;margin-left:auto;margin-right:auto}
+  .hs{padding:26px 8px 0;position:relative;text-align:center}
+  .hs+.hs::before{content:"";position:absolute;left:0;top:28px;bottom:4px;width:1px;background:var(--line)}
+  .hs b{display:block;font-size:31px;font-weight:650;letter-spacing:-.03em;line-height:1.1;
+    font-variant-numeric:tabular-nums}
+  .hs span{color:var(--ink-3);font-size:12.5px;margin-top:6px;display:block}
+
+  /* ---------- 粘性 tab ---------- */
+  .tabs{display:flex;gap:1px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;justify-content:center}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{position:relative;padding:8px 13px;font-size:13.5px;color:var(--ink-2);background:none;border:none;
+    border-radius:var(--r-pill);white-space:nowrap;transition:.18s;font-weight:500;cursor:pointer;
+    border:1px solid transparent}
+  .tab:hover{color:#fff;background:rgba(255,255,255,.07)}
+  /* 选中态 = 浮在导航玻璃之上的一小片更亮的玻璃。
+     它是状态标记，不是操作，所以不抢主按钮那唯一的实心白。 */
+  .tab.active{color:#fff;font-weight:600;
+    background:rgba(255,255,255,.16);
+    -webkit-backdrop-filter:blur(14px) saturate(200%) brightness(1.15);
+    backdrop-filter:blur(14px) saturate(200%) brightness(1.15);
+    border-color:rgba(255,255,255,.22);
+    box-shadow:0 1px 0 rgba(255,255,255,.28) inset, 0 4px 14px -6px rgba(0,0,0,.6)}
+  /* 上缘镜面高光，与外层玻璃同一套语言 */
+  .tab.active::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,0) 52%);
+    -webkit-mask:linear-gradient(#000,#000) content-box,linear-gradient(#000,#000);
+    -webkit-mask-composite:xor;mask-composite:exclude;padding:1px}
+  @media (prefers-reduced-transparency:reduce){
+    .tab.active{background:rgba(255,255,255,.22);backdrop-filter:none;-webkit-backdrop-filter:none}}
+  .pane{display:none;padding-top:8px}
+  .pane.active{display:block}
+
+  .sect-h{font-size:18px;font-weight:650;margin:44px 0 18px;letter-spacing:-.014em;
+    scroll-margin-top:150px;text-align:center}
+  .sect-h:first-child{margin-top:0}
+  .note{margin-top:22px;color:var(--ink-3);font-size:13px;line-height:1.8;
+    text-align:center;max-width:680px;margin-left:auto;margin-right:auto}
+
+  /* ---------- 内容层：实心暗面板 ---------- */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);
+    box-shadow:var(--sh-panel)}
+  .what{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);
+    padding:23px 25px;color:var(--ink-2);font-size:14.5px;box-shadow:var(--sh-panel)}
+  code{background:rgba(255,255,255,.07);padding:2px 7px;border-radius:5px;font-size:12.5px;
+    color:#c3ccdb;font-family:"SF Mono",ui-monospace,Menlo,monospace}
+
+  /* ---------- 任务卡 ---------- */
+  .jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+  .job{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:20px 22px;
+    cursor:pointer;transition:.2s cubic-bezier(.2,.8,.3,1);position:relative;overflow:hidden}
+  .job::before{content:"";position:absolute;inset:0;opacity:0;transition:.22s;
+    background:radial-gradient(420px 180px at 12% 0%,rgba(64,128,255,.16),transparent 70%)}
+  .job:hover{border-color:rgba(255,255,255,.2);transform:translateY(-2px)}
+  .job:hover::before{opacity:1}
+  .job>*{position:relative;z-index:1}
+  .job .q{font-size:15px;font-weight:600;line-height:1.52;letter-spacing:-.008em}
+  .job .a{margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .job .a .cmd{background:rgba(255,255,255,.1);color:#dfe6f2;font-size:12px;padding:4px 11px;border-radius:7px;
+    font-family:"SF Mono",ui-monospace,Menlo,monospace;border:1px solid rgba(255,255,255,.08)}
+  .job .a .n{color:var(--ink-3);font-size:12.5px}
+  .job .cpz{position:absolute;right:17px;top:18px;color:var(--ink-3);opacity:0;transition:.15s;z-index:2}
+  .job:hover .cpz{opacity:1}
+  .job .cpz svg{width:14px;height:14px}
+
+  /* ---------- 折叠 ---------- */
+  .acc{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m)}
+  .acc+.acc{margin-top:10px}
+  .acc-head{padding:16px 21px;font-weight:600;display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14.5px}
+  .acc-head .caret{margin-left:auto;color:var(--ink-3);transition:transform .2s}
+  .acc-head .caret svg{width:15px;height:15px}
+  .acc.open .caret{transform:rotate(90deg)}
+  .acc-body{display:none;padding:0 21px 18px;color:var(--ink-2)}
+  .acc.open .acc-body{display:block}
+  .acc-body ul{padding-left:17px}.acc-body li{margin:7px 0;font-size:14px}
+  .acc-body b{color:var(--ink)}
+
+  /* ---------- 技能行 ---------- */
+  .atomlist{display:grid;gap:10px}
+  .arow{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:18px 21px;
+    display:flex;gap:15px;align-items:flex-start;transition:.16s}
+  .arow:hover{border-color:rgba(255,255,255,.18)}
+  .arow .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;color:#fff}
+  .arow .ic svg{width:16px;height:16px}
+  .ic.orch{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.14)}
+  .ic.research{background:#2f6bff}.ic.value{background:#159b43}.ic.prd{background:#c67810}
+  .ic.entity{background:#6f4bd8}.ic.design{background:#c8415f}
+  .arow h4{font-size:15px;font-weight:650;display:flex;gap:8px;align-items:center;flex-wrap:wrap;letter-spacing:-.008em}
+  .arow p{font-size:13.5px;color:var(--ink-2);margin-top:5px;line-height:1.6}
+  .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px}
+  .tag.new{background:rgba(35,195,67,.16);color:#4ade6a}
+  .tag.ext{background:rgba(255,255,255,.08);color:var(--ink-2)}
+  .tag.orch{background:rgba(64,128,255,.18);color:#87abff}
+  .arow .path{margin-left:auto;font-size:12px;color:var(--ink-3);white-space:nowrap;padding-top:2px}
+
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center}
+  .fm{font-size:12.5px;border:1px solid var(--line);border-radius:9px;padding:8px 14px;
+    background:var(--panel);color:var(--ink-2)}
+  .fm b{color:var(--ink);font-weight:600}
+  .fm .k{color:var(--ink-3);font-size:11.5px;margin-left:6px;font-family:"SF Mono",ui-monospace,monospace}
+  .flow .ar{color:#4a525f}.flow .ar svg{width:15px;height:15px}
+  .flow-note{margin-top:16px;color:var(--ink-3);font-size:13px;text-align:center}
+
+  /* ---------- 安装 ---------- */
+  .dlbox{background:linear-gradient(120deg,rgba(64,128,255,.16),rgba(255,255,255,.04));
+    border:1px solid rgba(255,255,255,.14);border-radius:var(--r-m);padding:21px 25px;
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .dlbox b{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:14.5px;font-weight:600}
+  .dlbox .dlmeta{color:var(--ink-2);font-size:13px;margin-left:10px}
+  .dlbox .btn{margin-left:auto}
+  .installs{display:grid;gap:10px;margin-top:14px}
+  .ins{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:18px 21px}
+  .ins .ih{display:flex;align-items:center;gap:11px;font-size:14.5px;font-weight:600}
+  .ins .ih .n{width:21px;height:21px;border-radius:7px;background:rgba(255,255,255,.09);color:var(--ink-2);
+    font-size:11.5px;display:grid;place-items:center;flex:none;font-weight:700}
+  .ins .ih .tip{margin-left:auto;color:var(--ink-3);font-size:12.5px;font-weight:400}
+  .ins .cmd{margin-top:12px;background:rgba(0,0,0,.4);border:1px solid var(--line-2);border-radius:10px;
+    padding:12px 15px;font-size:12.5px;color:#b9c3d3;font-family:"SF Mono",ui-monospace,Menlo,monospace;
+    display:flex;gap:12px;align-items:flex-start;line-height:1.68}
+  .ins .cmd .cpy{margin-left:auto;cursor:pointer;color:var(--ink-3);flex:none}
+  .ins .cmd .cpy svg{width:14px;height:14px}
+  .ins .cmd .cpy:hover{color:#fff}
+
+  /* ---------- 质量检查 ---------- */
+  .qc-top{display:flex;align-items:baseline;margin-bottom:16px}
+  .qc-top .t{font-size:17.5px;font-weight:650}
+  .qc-top .when{margin-left:auto;color:var(--ink-3);font-size:13px}
+  .qc-overview{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:27px 29px}
+  .qc-num{display:flex;align-items:center;gap:21px;flex-wrap:wrap}
+  .qc-num .n{font-size:52px;font-weight:650;color:#4ade6a;letter-spacing:-.035em;line-height:1;
+    font-variant-numeric:tabular-nums}
+  .qc-num .t1{font-size:16px;font-weight:650;display:flex;align-items:center;gap:9px}
+  .qc-num .t2{color:var(--ink-2);font-size:13.5px;margin-top:5px}
+  .qc-p0{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:23px 0}
+  .qc-p0 .c{border:1px solid var(--line);border-radius:11px;padding:16px 18px;background:var(--panel-2)}
+  .qc-p0 .c .h{font-size:13px;margin-bottom:10px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+  .qc-p0 .c .h i{width:7px;height:7px;border-radius:50%;display:block}
+  .qc-p0 .c .h .p0{background:var(--err)}.qc-p0 .c .h .p1{background:var(--warn)}.qc-p0 .c .h .p2{background:var(--brand)}
+  .qc-p0 .c .v{font-size:15px;font-weight:600}
+  .qc-dims{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:12px}
+  .dim{border:1px solid var(--line);border-radius:11px;padding:15px 17px;background:var(--panel-2)}
+  .dim .dn{font-size:13px;color:var(--ink-2);margin-bottom:11px}
+  .dim .bar{height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+  .dim .bar i{display:block;height:100%;background:#4ade6a;border-radius:2px}
+  .dim .dv{font-size:12px;color:var(--ink-3);margin-top:8px;font-variant-numeric:tabular-nums}
+  .lvl{margin-top:25px}
+  .lvl-h{display:flex;gap:11px;align-items:baseline;margin-bottom:12px;flex-wrap:wrap}
+  .lvl-h .lvl-tag{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:6px}
+  .lvl-h b{font-size:14.5px}
+  .lvl-h .ln{color:var(--ink-3);font-size:13px}
+  .lvl0 .lvl-tag{background:rgba(247,105,101,.16);color:#f88}
+  .lvl1 .lvl-tag{background:rgba(255,154,46,.16);color:#ffb35c}
+  .lvl2 .lvl-tag{background:rgba(64,128,255,.18);color:#87abff}
+  .lvl-row{display:flex;align-items:center;justify-content:space-between;background:var(--panel);
+    border:1px solid var(--line);border-radius:11px;padding:15px 20px;margin-bottom:8px}
+  .lvl-row .l{color:var(--ink-2);font-size:14px}
+  .lvl-row .pass{font-size:13px;color:var(--ink-3);display:flex;align-items:center;gap:10px;
+    font-variant-numeric:tabular-nums}
+  .lvl-row .pass .ok{background:rgba(35,195,67,.16);color:#4ade6a;font-size:11.5px;padding:2px 9px;
+    border-radius:5px;font-weight:600}
+  .lvl-row .pass .no{background:rgba(255,154,46,.16);color:#ffb35c;font-size:11.5px;padding:2px 9px;
+    border-radius:5px;font-weight:600}
+
+  /* ---------- 评测 ---------- */
+  .planned{background:var(--panel);border:1px solid var(--line);border-left:2px solid var(--warn);
+    border-radius:var(--r-m);padding:22px 26px;margin-bottom:20px}
+  .planned h3{font-size:16px;margin-bottom:8px;font-weight:650}
+  .planned p{color:var(--ink-2);font-size:14px}
+  .evd{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden;table-layout:fixed}
+  .evd th{text-align:left;font-size:12px;color:var(--ink-3);font-weight:600;padding:13px 18px;
+    background:rgba(255,255,255,.03);border-bottom:1px solid var(--line);letter-spacing:.02em}
+  .evd td{padding:15px 18px;font-size:13.5px;color:var(--ink-2);border-bottom:1px solid var(--line-2);
+    vertical-align:top;line-height:1.62}
+  .evd tr:last-child td{border-bottom:none}
+  .evd td.d{font-weight:650;color:var(--ink)}
+
+  /* ---------- 版本 ---------- */
+  .ver{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:20px 24px;margin-bottom:12px}
+  .ver .vh{display:flex;align-items:center;gap:11px;font-size:15px;font-weight:650;flex-wrap:wrap}
+  .ver .vh .num{font-family:"SF Mono",ui-monospace,Menlo,monospace}
+  .ver .vmeta{margin-left:auto;color:var(--ink-3);font-size:12.5px;font-weight:400}
+  .ver .vcommits{margin:13px 0 0 6px;border-left:2px solid var(--line);padding-left:17px;color:var(--ink-2)}
+  .ver .vcommits p{margin:6px 0;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px}
+  .cur-tag{background:rgba(35,195,67,.16);color:#4ade6a;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:5px}
+
+  /* ---------- 反馈 ---------- */
+  .rsummary{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);
+    padding:25px 29px;display:flex;align-items:center;gap:42px;flex-wrap:wrap}
+  .rsummary .avg{font-size:46px;font-weight:650;line-height:1;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+  .rsummary .stars{color:#ffb020;letter-spacing:2px;font-size:16px;margin-top:8px}
+  .rsummary .rc{color:var(--ink-3);font-size:12.5px;margin-top:7px}
+  .rsummary .dims3{display:flex;gap:34px;flex-wrap:wrap}
+  .rsummary .d3{font-size:13px;color:var(--ink-3)}
+  .rsummary .d3 b{display:block;font-size:19px;color:var(--ink);font-weight:650;margin-top:4px;
+    font-variant-numeric:tabular-nums}
+  .rform{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:22px 25px;margin:16px 0}
+  .rform .rv-author{width:250px;max-width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 14px;
+    font-size:13.5px;background:rgba(0,0,0,.35);color:var(--ink);margin-bottom:10px;display:block;transition:.16s}
+  .rform textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:13px 15px;
+    font-size:14px;min-height:80px;resize:vertical;background:rgba(0,0,0,.35);color:var(--ink);
+    transition:.16s;line-height:1.62}
+  .rform input::placeholder,.rform textarea::placeholder{color:#5d6673}
+  .rform input:focus,.rform textarea:focus{outline:none;border-color:rgba(64,128,255,.6);
+    box-shadow:0 0 0 3px rgba(64,128,255,.14)}
+  .rform .row{display:flex;align-items:center;gap:26px;margin-top:16px;flex-wrap:wrap}
+  .rate-grp{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink-2)}
+  .mini-stars{display:inline-flex;gap:2px;font-size:17px;color:#3a414c;cursor:pointer;user-select:none}
+  .mini-stars span.on{color:#ffb020}
+  .send{margin-left:auto;background:#fff;color:#000;border:none;border-radius:var(--r-s);
+    padding:10px 21px;font-size:13.5px;font-weight:600;cursor:pointer;transition:.18s}
+  .send:hover{background:#e6eaf0;transform:translateY(-1px)}
+  .rlist-h{font-size:15px;font-weight:650;margin:27px 0 12px}
+  .review{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:20px 24px;margin-bottom:10px}
+  .review .rh{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+  .review .av{width:28px;height:28px;border-radius:50%;background:linear-gradient(140deg,#4080FF,#1a5fd0);flex:none}
+  .review .ra{font-weight:650;font-size:14px}
+  .review .owner-tag{background:rgba(255,255,255,.08);color:var(--ink-2);font-size:11.5px;padding:1px 8px;border-radius:5px}
+  .review .rdate{color:var(--ink-3);font-size:12.5px;margin-left:auto}
+  .review .rstars{color:#ffb020;letter-spacing:1px;font-size:13px}
+  .review p{color:var(--ink-2);font-size:14px;line-height:1.66}
+  .empty{background:var(--panel);border:1px dashed var(--line);border-radius:var(--r-m);
+    padding:36px 24px;text-align:center;color:var(--ink-3);font-size:14px}
+
+  /* ---------- footer ---------- */
+  .foot{position:relative;z-index:1;border-top:1px solid var(--line);padding:42px 26px 52px}
+  .foot-in{max-width:1040px;margin:0 auto;display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+  .flogo{margin-bottom:7px}
+  .flogo .wm{font-size:22px}
+  .fname{font-size:12.5px;color:var(--ink-3);letter-spacing:.02em;margin-bottom:9px}
+  .foot p{font-size:13px;color:var(--ink-3)}.foot p b{color:var(--ink-2);font-weight:600}
+  .foot-links{margin-left:auto;display:flex;gap:24px;font-size:13.5px;color:var(--ink-2)}
+  .foot-links a{cursor:pointer;transition:.15s}.foot-links a:hover{color:#fff}
+
+  .toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(16px);opacity:0;
+    background:rgba(255,255,255,.1);-webkit-backdrop-filter:blur(20px) saturate(180%);
+    backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(255,255,255,.16);
+    color:#fff;padding:12px 21px;border-radius:12px;font-size:13.5px;
+    transition:.24s cubic-bezier(.2,.8,.3,1);z-index:99;pointer-events:none;box-shadow:var(--sh-float)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media(max-width:880px){
+    .hero{padding:132px 20px 0}.hero-in{padding-bottom:56px}
+    .hero-stats{grid-template-columns:repeat(2,1fr)}
+    .hs{padding:20px 8px 0}
+    .hs:nth-child(3)::before{display:none}
+    .hs:nth-child(3),.hs:nth-child(4){border-top:1px solid var(--line)}
+    .qc-p0{grid-template-columns:1fr}
+    .jobs{grid-template-columns:1fr}.wrap{padding:0 20px 70px}
+    .evd{display:block;overflow-x:auto}
+    .aurora i{filter:blur(70px)}
+  }
+</style>
+
+
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></symbol>
+  <symbol id="i-arrow-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="m12 6 6 6-6 6"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-flow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5V15a3 3 0 0 0 3 3h6"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 14 9 5 9-5"/></symbol>
+  <symbol id="i-git" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2A10 10 0 0 0 8.84 21.5c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2"/></symbol>
+  <symbol id="i-cmd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 4 4-4 4"/><path d="M12 16h7"/></symbol>
+</svg>
+
+<div class="aurora"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
+
+<nav class="nav glass" id="tabbar">
+  <div class="logo"><span class="wm">Eynap</span></div>
+  <div class="tabs">
+    <button class="tab active" data-p="overview"></button>
+    <button class="tab" data-p="detail"></button>
+    <button class="tab" data-p="install"></button>
+    <button class="tab" data-p="quality"></button>
+    <button class="tab" data-p="eval"></button>
+    <button class="tab" data-p="versions"></button>
+    <button class="tab" data-p="reviews"></button>
+    <button class="tab" data-p="credits"></button>
+  </div>
+  <div class="lang" id="lang">
+    <button data-lang="zh">中</button><button data-lang="en">EN</button>
+  </div>
+  <button class="btn btn-light" onclick="downloadZip()"><svg><use href="#i-dl"/></svg><span id="nav-dl"></span></button>
+</nav>
+
+<div class="stage">
+<div class="hero">
+  <div class="hero-in">
+    <h1><span id="hero-l1"></span><br><span class="l2" id="hero-l2"></span></h1>
+    <p class="hero-sub" id="tagline"></p>
+    <div class="hero-bar glass">
+      <button class="btn btn-light btn-lg" onclick="downloadZip()"><svg><use href="#i-dl"/></svg><span id="hero-dl"></span></button>
+      <button class="btn btn-line btn-lg" onclick="openInstall()"><span id="hero-ins"></span><svg><use href="#i-arrow-r"/></svg></button>
+    </div>
+    <div class="hero-stats">
+      <div class="hs"><b id="hs-atoms">6</b><span id="st-atoms"></span></div>
+      <div class="hs"><b id="hs-q"></b><span id="st-q"></span></div>
+      <div class="hs"><b id="hs-dl"></b><span id="st-dl"></span></div>
+      <div class="hs"><b id="hs-ver" class="mono"></b><span id="st-ver"></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <main class="main">
+    <!-- 用它做什么 -->
+    <section class="pane active" id="pane-overview">
+      <div class="sect-h" id="h-what"></div>
+      <div class="what" id="what"></div>
+      <div class="sect-h" id="h-job"></div>
+      <div class="jobs" id="jobs"></div>
+      <div class="sect-h" id="h-before"></div>
+      <div class="acc open"><div class="acc-head"><span id="h-pre"></span><span class="caret"><svg><use href="#i-chev"/></svg></span></div>
+        <div class="acc-body"><ul id="list-pre"></ul></div></div>
+      <div class="acc"><div class="acc-head"><span id="h-io"></span><span class="caret"><svg><use href="#i-chev"/></svg></span></div>
+        <div class="acc-body"><ul id="list-io"></ul></div></div>
+    </section>
+
+    <!-- 6 个技能 -->
+    <section class="pane" id="pane-detail">
+      <div class="sect-h" id="h-flow"></div>
+      <div class="flow" id="flow"></div>
+      <p class="flow-note" id="flow-note"></p>
+      <div class="sect-h" style="margin-top:34px" id="h-skills"></div>
+      <div class="atomlist" id="atoms"></div>
+    </section>
+
+    <!-- 安装 -->
+    <section class="pane" id="pane-install">
+      <div class="sect-h" id="h-ins"></div>
+      <div class="dlbox">
+        <div><b>eynap-2.0.0.zip</b><span class="dlmeta" id="zip-meta"></span></div>
+        <button class="btn btn-light" onclick="downloadZip()"><svg><use href="#i-dl"/></svg><span id="ins-dl"></span></button>
+      </div>
+      <div class="installs" id="installs"></div>
+      <div class="note" id="ins-note"></div>
+    </section>
+
+    <!-- 更新记录 -->
+    <section class="pane" id="pane-versions">
+      <div id="ver-list"></div>
+    </section>
+
+    <!-- 评测 -->
+    <section class="pane" id="pane-eval">
+      <div class="eval-bar" id="eval-bar"></div>
+      <div id="eval-body"></div>
+    </section>
+
+    <!-- 质量检查 -->
+    <section class="pane" id="pane-quality"></section>
+
+    <!-- 评价 -->
+    <section class="pane" id="pane-reviews"></section>
+
+    <!-- 版权与鸣谢 -->
+    <section class="pane" id="pane-credits"></section>
+
+  </main>
+</div>
+</div>
+
+<footer class="foot">
+  <div class="foot-in">
+    <div>
+      <div class="flogo"><span class="wm">Eynap</span></div>
+      <p class="fname">Everything You Need as an AI PM</p>
+      <p><span id="f-author"></span> <b id="owner"></b> · <span id="f-updated"></span> <span id="foot-date"></span></p>
+      <p class="flic" id="foot-license"></p>
+    </div>
+    <div class="foot-links">
+      <a onclick="downloadZip()" id="f-dl"></a>
+      <a data-jump="install" id="f-ins"></a>
+      <a data-jump="quality" id="f-q"></a>
+      <a data-jump="reviews" id="f-rv"></a>
+      <a data-jump="credits" id="f-cr"></a>
+    </div>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* 界面文案词典：固定文案一次译好、静态存储。
+   不走实时翻译模型——这些文案是有限且固定的，
+   实时翻译会让每次刷新结果不同，术语（PRD / 实体状态机 / 编排者）也容易被译飘。 */
+const I18N={
+  zh:{
+    heroL1:"完成 AI 产品经理工作", heroL2:"AI 需要学会的所有技能",
+    dl:"下载套件", dlBig:"下载套件 · 100K", howInstall:"怎么装到我的 AI",
+    statAtoms:"个技能，可单独调用", statQ:"静态检查通过", statDl:"次下载", statVer:"当前版本",
+    tabs:["做什么","技能","安装","质量","评测","更新","反馈","鸣谢"],
+    whatIs:"这是什么", whatJob:"你现在要做哪件事", before:"开始之前",
+    pre:"前置条件", io:"输入与产出",
+    preList:["云文档能力<b>不预装</b>：默认写本地 Markdown，第一次需要写到云上时会问你用哪家，再按需装后端。",
+      "设计与原型环节依赖外部技能 <code>product-feature-helper</code>，需另行安装，本套件不内置。",
+      "横切规则只在 <code>shared/</code> 存一份，部署时要一并放置，不要往各技能里复制。"],
+    ioList:["单点下单：直接说要做什么。没有上游文档时，技能会一次问齐背景和对象，不会挤牙膏。",
+      "连续使用：在一个项目目录里进行，各技能通过 <code>STATE.md</code> 交接，不必重复交代背景。",
+      "产出落到 <code>docs/</code> 对应目录；没有项目目录时直接在对话里给你。"],
+    flowTitle:"从头做一个产品时，它们这样接力",
+    flow:["调研","立项","PRD","实体","设计交付"],
+    flowNote:"但没人要求你从头走。每个技能都能单独下单，缺上游时它自己会把必要信息问齐。",
+    skillList:"技能清单", tagOrch:"编排者", tagNew:"新建", tagExt:"外部 · 未改",
+    insTitle:"先下载，再按你的宿主选一种装法", zipMeta:"39 个文件 · 100K · 纯 Markdown 与 shell，无二进制",
+    dlShort:"下载",
+    insNote:"这套东西本体是 Markdown，不绑定任何一家宿主。只要你的 Agent 能读本地文件，最后一种装法就一定成立；前两种只是更省事。",
+    qcOverview:"结果概览", qcWhen:"检查于", qcPassed:"必检项通过",
+    p0:"P0 必须通过", p1:"P1 建议修复", p2:"P2 可选优化",
+    allPass:"全部通过", passWord:"通过", todo:"待优化", passSuffix:"通过",
+    qcNote:"这些是按真实文件结构与脚本实测逐项核对的静态检查，不是自动跑分。P2 里 <code>install.sh</code> 的宿主中立化是已知待办，如实标未过——全绿反而说明没认真查。",
+    evDesign:"评测设计", evH:["维度","要回答什么","怎么测","看哪个数"],
+    evNote:"先定目的再设计测法，这是 <code>pm-research</code> 里写的规矩，这张表按同样的规矩对自己用了一遍。没跑就是没跑，不摆一个凑出来的分数。",
+    cur:"当前", rvCount:"条反馈", rvF:"功能完善度", rvE:"效果质量", rvS:"运行稳定性",
+    rvName:"你的名字（留空显示为匿名）", rvText:"用下来哪里好用、哪里卡住了？具体场景比形容词有用。",
+    rvSend:"提交反馈", rvAll:"全部反馈", rvEmpty:"还没有反馈。你是第一个用的人的话，上面直接写。",
+    author:"作者", updated:"最近更新", ownerTag:"作者",
+    creditsTitle:"这套东西从哪来", licenseTitle:"许可证", thanksTitle:"鸣谢",
+    contribTitle:"想一起改", viewRepo:"查看原始仓库", viewLicense:"查看许可证全文",
+    origAuthor:"原作者", restructBy:"重构",
+    contribZh:"",
+    footDl:"下载套件", footIns:"安装说明", footQ:"质量检查", footRv:"留下反馈", footCr:"版权与鸣谢",
+    toastCopied:"已复制：", toastDl:"已开始下载 eynap-2.0.0.zip",
+    toastOffDl:"离线模式：请先运行 node server.mjs 再下载",
+    toastOffRv:"离线模式：请先运行 node server.mjs 再提交",
+    toastNeedText:"先写点内容再提交", toastSaved:"反馈已提交，谢谢", toastFail:"提交失败",
+    toastRate:"提交太频繁了，过几分钟再试", toastDup:"这条内容已经有人提过了",
+    toastReadonly:"评价服务还没接上，先去 GitHub 提 Issue 吧",
+    offline:"离线模式：可浏览，下载与反馈需运行 node server.mjs"
+  },
+  en:{
+    heroL1:"Everything You Need", heroL2:"as an AI PM",
+    dl:"Download", dlBig:"Download · 100K", howInstall:"How to install it",
+    statAtoms:"skills, each callable on its own", statQ:"static checks passed", statDl:"downloads", statVer:"current version",
+    tabs:["Overview","Skills","Install","Quality","Eval","Changelog","Feedback","Credits"],
+    whatIs:"What this is", whatJob:"What are you trying to do", before:"Before you start",
+    pre:"Prerequisites", io:"Input and output",
+    preList:["Cloud-document support is <b>not bundled</b>: it writes local Markdown by default, and asks which provider you use the first time you need to publish.",
+      "Design and prototyping rely on the external skill <code>product-feature-helper</code>, installed separately — not included here.",
+      "Cross-cutting rules live in <code>shared/</code> once; ship that folder alongside, and never copy it into individual skills."],
+    ioList:["One-off use: just say what you need. With no upstream document, the skill asks for the background and objects in one go.",
+      "Continuous use: work inside a project directory; skills hand off through <code>STATE.md</code>, so you never restate context.",
+      "Output lands in the matching folder under <code>docs/</code>, or comes back in the conversation if there is no project directory."],
+    flowTitle:"Building a product from scratch, they run in this order",
+    flow:["Research","Framing","PRD","Entity","Handoff"],
+    flowNote:"Nothing requires you to start at the beginning. Each skill can be called on its own and will ask for what it is missing.",
+    skillList:"The skills", tagOrch:"orchestrator", tagNew:"new", tagExt:"external · unmodified",
+    insTitle:"Download first, then pick the method that matches your host",
+    zipMeta:"39 files · 100K · plain Markdown and shell, no binaries",
+    dlShort:"Download",
+    insNote:"This kit is just Markdown; it is not tied to any single host. As long as your agent can read local files, the last method always works — the first two are simply more convenient.",
+    qcOverview:"Results", qcWhen:"checked on", qcPassed:"required checks passed",
+    p0:"P0 must pass", p1:"P1 should fix", p2:"P2 optional",
+    allPass:"all passed", passWord:"pass", todo:"open", passSuffix:"passed",
+    qcNote:"These are static checks verified item by item against the real file structure and script runs — not an automated score. The host-neutral <code>install.sh</code> under P2 is a known to-do, reported honestly as failing; an all-green board would only mean nobody looked.",
+    evDesign:"Evaluation design", evH:["Dimension","Question it answers","Method","Metric"],
+    evNote:"Define the purpose before designing the test — that is the rule written into <code>pm-research</code>, and this table applies it to the kit itself. Not run means not run; no invented score.",
+    cur:"current", rvCount:"pieces of feedback", rvF:"Features", rvE:"Output quality", rvS:"Stability",
+    rvName:"Your name (leave blank to post anonymously)",
+    rvText:"What worked, where did you get stuck? A concrete situation beats an adjective.",
+    rvSend:"Submit", rvAll:"All feedback", rvEmpty:"No feedback yet. If you are the first to use it, write it above.",
+    author:"Author", updated:"Last updated", ownerTag:"author",
+    creditsTitle:"Where this came from", licenseTitle:"License", thanksTitle:"Acknowledgements",
+    contribTitle:"Want to contribute", viewRepo:"Original repository", viewLicense:"Full license text",
+    origAuthor:"original author", restructBy:"restructured by",
+    footDl:"Download", footIns:"Install", footQ:"Quality", footRv:"Feedback", footCr:"Credits",
+    toastCopied:"Copied: ", toastDl:"Downloading eynap-2.0.0.zip",
+    toastOffDl:"Offline: run node server.mjs first, then download",
+    toastOffRv:"Offline: run node server.mjs first, then submit",
+    toastNeedText:"Write something first", toastSaved:"Thanks, feedback submitted", toastFail:"Submission failed",
+    toastRate:"Too many submissions, try again in a few minutes", toastDup:"Someone already posted this",
+    toastReadonly:"Feedback service is not wired up yet — open an issue on GitHub instead",
+    offline:"Offline mode: browsing works; download and feedback need node server.mjs"
+  }
+};
+</script>
+
+<script>window.__STORE__={
+  "plugin": {
+    "id": "ai-pm-suite",
+    "name": "Everything You Need as an AI PM",
+    "identifier": "ai-pm-suite",
+    "latestVersion": "2.0.0",
+    "versionDate": "2026-09-14",
+    "tagline": "调研、立项、PRD、实体状态机、设计交付——把这五件事的做法写成 AI 能读的技能，它才接得住产品经理的活。",
+    "owner": "yuanchenjie.antares",
+    "internal": true,
+    "downloadFile": "eynap-2.0.0.zip",
+    "whatIsThis": "一个 AI 产品经理技能套件：1 个编排者负责判定阶段、路由技能、检查关卡；5 个原子技能分别承接调研、立项、PRD、实体状态机、设计交付；外加一份被所有技能引用的共享地基（记忆、偏好、命名、协议、宿主差异、措辞规范）。想做哪件直接调用对应技能，不必跑完整条流水线。",
+    "qualityDate": "2026-09-15",
+    "taglineEn": "Research, framing, PRD, entity state machines, design handoff — write down how each of these is done, in a form an AI can read. That is what it takes for AI to carry a PM's work.",
+    "whatIsThisEn": "An AI product-manager skill kit: one orchestrator that decides the stage, routes to a skill and checks the gate; five skills covering research, framing, PRD, entity state machines and design handoff; plus one shared foundation every skill reads (memory, preferences, naming, protocols, host differences, wording rules). Call the one you need directly — no need to run the whole pipeline."
+  },
+  "downloads": 0,
+  "files": [
+    {
+      "id": "ai-pm",
+      "kind": "orchestrator",
+      "title": "ai-pm",
+      "version": "2.0.0",
+      "lines": 140,
+      "path": "skills/ai-pm/SKILL.md",
+      "descEn": "Decides the stage, routes to a skill, checks the gate. Produces no deliverable of its own."
+    },
+    {
+      "id": "pm-research",
+      "kind": "atom",
+      "isNew": true,
+      "title": "pm-research",
+      "version": "2.0.0",
+      "lines": 149,
+      "path": "skills/pm-research/SKILL.md",
+      "out": "04_RESOURCES/",
+      "descEn": "Purpose-first research: funnel walkthrough plus single-variable controlled experiments, with evidence graded."
+    },
+    {
+      "id": "pm-value",
+      "kind": "atom",
+      "title": "pm-value",
+      "version": "2.0.0",
+      "lines": 84,
+      "path": "skills/pm-value/SKILL.md",
+      "out": "01_STRATEGY/",
+      "descEn": "Mines the value anchor from real stories, reality-checks it, and converges on scope."
+    },
+    {
+      "id": "pm-prd",
+      "kind": "atom",
+      "title": "pm-prd",
+      "version": "2.0.0",
+      "lines": 117,
+      "path": "skills/pm-prd/SKILL.md",
+      "out": "02_PRD/",
+      "descEn": "Journeys, MVP, page structure; goals split into product and algorithm metrics; four-column interaction table."
+    },
+    {
+      "id": "pm-entity",
+      "kind": "atom",
+      "title": "pm-entity",
+      "version": "2.0.0",
+      "lines": 135,
+      "path": "skills/pm-entity/SKILL.md",
+      "out": "02_PRD/",
+      "descEn": "State tables, forward and backward transitions, per-state permissions and field behaviour."
+    },
+    {
+      "id": "pfh",
+      "kind": "external",
+      "title": "product-feature-helper",
+      "external": true,
+      "out": "03_DESIGN/",
+      "descEn": "Extracts tokens from a live page, injects a clickable prototype, produces annotated interaction notes."
+    }
+  ],
+  "versions": [
+    {
+      "version": "2.0.0",
+      "date": "2026-09-14 21:00:00",
+      "current": true,
+      "title": "重构为编排者 + 原子",
+      "commits": [
+        "Merge 'feat/atoms' into 'main'",
+        "feat: 单技能流水线拆为 1 编排者 + 5 原子 (v2.0.0)",
+        "See merge request: !1"
+      ],
+      "author": "yuanchenjie.antares",
+      "authorNote": "重构",
+      "titleEn": "Restructured into orchestrator + skills",
+      "authorNoteEn": "restructured by",
+      "commitsEn": [
+        "Merge 'feat/atoms' into 'main'",
+        "feat: split the single-skill pipeline into 1 orchestrator + 5 skills (v2.0.0)",
+        "See merge request: !1"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-06-01 10:00:00",
+      "current": false,
+      "title": "五 Scene 单技能初版",
+      "commits": [
+        "chore: initial single-skill pipeline (v1.0.0)",
+        "Layer1 偏好 / host 检测 / 五 Scene 门"
+      ],
+      "author": "SmileLiuuuu",
+      "authorNote": "原作者",
+      "titleEn": "First release: five-Scene single skill",
+      "authorNoteEn": "original author",
+      "commitsEn": [
+        "chore: initial single-skill pipeline (v1.0.0)",
+        "Layer1 preferences / host detection / five-Scene gates"
+      ]
+    }
+  ],
+  "dynamicEval": {
+    "status": "planned",
+    "statusLabel": "评测方案已定义，尚未执行",
+    "note": "这个套件的产物是文档，不是可自动判分的答案，所以没有现成跑分引擎。下面是已经定好的评测设计，执行后回填结果。",
+    "design": [
+      {
+        "dim": "可用性",
+        "question": "同一个模糊需求，用与不用这套技能，产出的文档能否直接进评审？",
+        "method": "单变量对照：同一需求各跑一次，交给不需知情的评审人盲评",
+        "metric": "评审一次通过率",
+        "dimEn": "Usability",
+        "questionEn": "Given the same vague request, does the output go straight into review with the kit versus without it?",
+        "methodEn": "Single-variable A/B: run the same request once each way, then blind-review both",
+        "metricEn": "first-pass review rate"
+      },
+      {
+        "dim": "完整度",
+        "question": "PRD 是否覆盖了交互四列表、实体状态、分产品/算法的指标？",
+        "method": "按 prd-patterns 的六段骨架逐项核对",
+        "metric": "必备章节缺失数",
+        "dimEn": "Completeness",
+        "questionEn": "Does the PRD cover the four-column interaction table, entity states, and separate product/algorithm metrics?",
+        "methodEn": "Check against the six-part skeleton in prd-patterns",
+        "metricEn": "missing required sections"
+      },
+      {
+        "dim": "措辞",
+        "question": "产出里还有多少大词、隐喻、黑话？",
+        "method": "用 verification.md 的反例词表扫描全文",
+        "metric": "命中词数 / 千字",
+        "dimEn": "Wording",
+        "questionEn": "How much grandiose, metaphorical or jargon-laden language is left in the output?",
+        "methodEn": "Scan the full text against the counter-example list in verification.md",
+        "metricEn": "hits per 1,000 characters"
+      },
+      {
+        "dim": "路由准确性",
+        "question": "编排者是否把请求分到了正确的原子？",
+        "method": "构造 20 条意图各异的请求，人工核对落点",
+        "metric": "路由正确条数",
+        "dimEn": "Routing accuracy",
+        "questionEn": "Does the orchestrator route a request to the right skill?",
+        "methodEn": "Construct 20 requests with differing intent and check each landing point by hand",
+        "metricEn": "correctly routed requests"
+      },
+      {
+        "dim": "独立可用性",
+        "question": "单独调某个原子，无上游时能否问齐必要输入？",
+        "method": "零上游启动 5 个原子各一次",
+        "metric": "需要追加澄清的轮次",
+        "dimEn": "Standalone use",
+        "questionEn": "Called on its own with no upstream document, does a skill ask for everything it needs?",
+        "methodEn": "Cold-start each of the five skills once",
+        "metricEn": "extra clarification rounds needed"
+      }
+    ],
+    "statusLabelEn": "Evaluation designed, not yet run",
+    "noteEn": "What this kit produces is documents, not answers a scorer can grade automatically, so there is no off-the-shelf engine for it. Below is the evaluation already designed; results will be filled in once it runs."
+  },
+  "quality": {
+    "passed": 37,
+    "total": 37,
+    "label": "必检项全通过",
+    "summary": "P0、P1 全部通过；P2 有 1 项待优化（install.sh 宿主中立化）。",
+    "date": "2026-09-15 16:20:41",
+    "groups": [
+      {
+        "level": "P0",
+        "levelLabel": "必须通过",
+        "levelNote": "结构与可运行，必须通过",
+        "items": [
+          {
+            "dim": "frontmatter",
+            "pass": 5,
+            "total": 5
+          },
+          {
+            "dim": "markdown",
+            "pass": 11,
+            "total": 11
+          },
+          {
+            "dim": "scripts",
+            "pass": 2,
+            "total": 2
+          },
+          {
+            "dim": "resources",
+            "pass": 6,
+            "total": 6
+          },
+          {
+            "dim": "structure",
+            "pass": 1,
+            "total": 1
+          },
+          {
+            "dim": "links",
+            "pass": 5,
+            "total": 5
+          },
+          {
+            "dim": "protocol",
+            "pass": 7,
+            "total": 7
+          }
+        ],
+        "levelLabelEn": "Must pass",
+        "levelNoteEn": "structure and runnability"
+      },
+      {
+        "level": "P1",
+        "levelLabel": "建议通过",
+        "levelNote": "内容一致性，建议修复",
+        "items": [
+          {
+            "dim": "shared-单一定义",
+            "pass": 1,
+            "total": 1,
+            "dimEn": "shared defined once"
+          },
+          {
+            "dim": "description-触发词无重叠",
+            "pass": 1,
+            "total": 1,
+            "dimEn": "no overlapping trigger words"
+          },
+          {
+            "dim": "脱敏与占位符清理",
+            "pass": 1,
+            "total": 1,
+            "dimEn": "anonymised, no leftover placeholders"
+          }
+        ],
+        "levelLabelEn": "Should fix",
+        "levelNoteEn": "content consistency"
+      },
+      {
+        "level": "P2",
+        "levelLabel": "可选优化",
+        "levelNote": "打磨建议，可选修复",
+        "items": [
+          {
+            "dim": "install.sh 宿主中立化",
+            "pass": 0,
+            "total": 1,
+            "dimEn": "host-neutral install.sh"
+          }
+        ],
+        "levelLabelEn": "Optional",
+        "levelNoteEn": "polish, fix if you like"
+      }
+    ],
+    "labelEn": "All required checks passed",
+    "summaryEn": "P0 and P1 all pass; one P2 item is still open (making install.sh host-neutral)."
+  },
+  "reviews": [
+    {
+      "author": "yuanchenjie.antares",
+      "owner": true,
+      "date": "2026-09-15",
+      "feature": 5,
+      "effect": 5,
+      "stability": 5,
+      "text": "重构后单点需求不用再跑整条流水线，pm-entity 拉状态机、pm-prd 的三段式交互表都很顺手。"
+    }
+  ],
+  "install": [
+    {
+      "host": "Claude Code / 支持 plugin 的宿主",
+      "cmd": "解压后放入 ~/.claude/plugins/，重启宿主即可 @ 调用",
+      "note": "识别 .claude-plugin/plugin.json",
+      "hostEn": "Claude Code / any plugin-aware host",
+      "cmdEn": "Unzip into ~/.claude/plugins/, restart the host, then call it with @",
+      "noteEn": "reads .claude-plugin/plugin.json"
+    },
+    {
+      "host": "Cursor",
+      "cmd": "解压后放入 .cursor/rules/ 或项目根目录，在 .cursorrules 里引用 skills/ai-pm/SKILL.md",
+      "note": "按 rules 方式加载",
+      "hostEn": "Cursor",
+      "cmdEn": "Unzip into .cursor/rules/ or the project root, then reference skills/ai-pm/SKILL.md from .cursorrules",
+      "noteEn": "loaded as rules"
+    },
+    {
+      "host": "任意支持读文件的 Agent",
+      "cmd": "解压到项目任意位置，在系统提示里写一行：需要产品工作时先读 skills/ai-pm/SKILL.md",
+      "note": "最低要求：Agent 能读本地文件",
+      "hostEn": "Any agent that can read local files",
+      "cmdEn": "Unzip anywhere in the project and add one line to the system prompt: for product work, read skills/ai-pm/SKILL.md first",
+      "noteEn": "minimum requirement: the agent can read local files"
+    },
+    {
+      "host": "手动 / 无 Agent",
+      "cmd": "当成写作模板用：按 skills/<原子>/SKILL.md 的结构自己填",
+      "note": "不依赖任何工具",
+      "hostEn": "By hand / no agent",
+      "cmdEn": "Use it as a writing template: follow the structure in skills/<skill>/SKILL.md and fill it in yourself",
+      "noteEn": "no tooling required"
+    }
+  ],
+  "credits": {
+    "upstream": {
+      "author": "SmileLiuuuu",
+      "repo": "https://github.com/SmileLiuuuu/ai-pm",
+      "license": "CC BY-NC 4.0",
+      "licenseName": "Creative Commons Attribution-NonCommercial 4.0 International",
+      "licenseUrl": "https://github.com/SmileLiuuuu/ai-pm/blob/main/LICENSE",
+      "licenseDeed": "https://creativecommons.org/licenses/by-nc/4.0/"
+    },
+    "statementZh": [
+      "本套件的初版（v1.0.0）由 SmileLiuuuu 创作，原始仓库为 github.com/SmileLiuuuu/ai-pm，按 CC BY-NC 4.0 授权。",
+      "当前版本（v2.0.0）是在其基础上重构的衍生作品：把原先的五 Scene 单技能流水线，拆成 1 个编排者 + 5 个可单独调用的技能，并抽出一份共享地基。",
+      "依据 CC BY-NC 4.0，本衍生作品同样以 CC BY-NC 4.0 授权、保留原作者署名、不得用于商业用途。原作以「现状」提供，不附任何明示或默示担保。"
+    ],
+    "statementEn": [
+      "The first version (v1.0.0) of this kit was created by SmileLiuuuu. The original repository is github.com/SmileLiuuuu/ai-pm, licensed under CC BY-NC 4.0.",
+      "The current version (v2.0.0) is an adaptation: the original five-Scene single-skill pipeline was restructured into one orchestrator plus five independently callable skills, with a shared foundation extracted.",
+      "Per CC BY-NC 4.0, this adaptation is released under the same license, retains attribution to the original author, and may not be used commercially. The original material is provided as-is, without warranties of any kind."
+    ],
+    "thanksZh": "感谢我的 mentor SmileLiuuuu。这套东西的方法论骨架——价值锚点、场景而非功能清单、PRD 是随理解加深而涌现的——都来自初版。v2.0.0 只是把它拆得更细、让每个环节能被单独调用。",
+    "thanksEn": "Thanks to my mentor SmileLiuuuu. The methodology behind this kit — the value anchor, scenarios over feature lists, the idea that a PRD emerges as understanding deepens — all comes from the original version. v2.0.0 only breaks it into finer parts so each step can be called on its own.",
+    "contribute": {
+      "upstreamRepo": "https://github.com/SmileLiuuuu/ai-pm",
+      "forkRepo": "https://github.com/AntaresYuan/eynap"
+    }
+  }
+};</script>
+<script>
+/* 评价与下载计数的后端地址。
+   留空：使用同源的本地 server.mjs（开发用）
+   填 Workers 地址：公网部署，例如 https://eynap-api.<你的账号>.workers.dev */
+const API_BASE = '';
+let S=null, myRate={feature:5,effect:5,stability:5};
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const stars=n=>'★'.repeat(Math.round(n))+'☆'.repeat(5-Math.round(n));
+
+/* ---------- 语言 ----------
+   优先级：用户手动选过 > 浏览器语言 > 默认中文。
+   说明：纯前端拿不到 IP 归属地，navigator.language 由系统区域设置决定，
+   在真实使用中与所在地高度相关，且不需要请求任何第三方定位服务。 */
+let LANG='zh';
+function detectLang(){
+  const saved=localStorage.getItem('eynap-lang');
+  if(saved==='zh'||saved==='en') return saved;
+  const nav=(navigator.languages&&navigator.languages[0])||navigator.language||'';
+  return /^zh\b/i.test(nav) ? 'zh' : 'en';
+}
+function T(){return I18N[LANG];}
+const pick=(o,k)=>LANG==='en'&&o[k+'En']?o[k+'En']:o[k];
+function setLang(l){
+  LANG=l; localStorage.setItem('eynap-lang',l);
+  document.documentElement.lang = l==='zh' ? 'zh-CN' : 'en';
+  $$('#lang button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
+  render();
+}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(window.__tt);window.__tt=setTimeout(()=>t.classList.remove('show'),2400);}
+
+async function load(){
+  if (API_BASE) {
+    // 公网模式：页面是静态的，只有评价和下载数走远端
+    S = JSON.parse(JSON.stringify(window.__STORE__));
+    try {
+      const live = await (await fetch(API_BASE + '/api/reviews')).json();
+      S.reviews = live.reviews; S.downloads = live.downloads;
+    } catch(e){ window.__OFFLINE__ = true; }
+  } else {
+    // 未配置远端：先试同源后端；拿不到就是静态托管，转为只读
+    try {
+      const r = await fetch('/api/store');
+      if (!r.ok) throw new Error('no backend');
+      S = await r.json();
+    } catch(e) {
+      S = JSON.parse(JSON.stringify(window.__STORE__));
+      window.__READONLY__ = true;
+    }
+  }
+  LANG=detectLang();
+  $$('#lang button').forEach(b=>b.classList.toggle('on',b.dataset.lang===LANG));
+  document.documentElement.lang = LANG==='zh' ? 'zh-CN' : 'en';
+  render();
+  if(window.__OFFLINE__) toast(T().offline);
+}
+
+/* ---------- 全量渲染（切语言时整页重画） ---------- */
+function render(){
+  const t=T(), v=S.plugin.latestVersion, date=S.plugin.versionDate.replace(/-/g,'/');
+  const set=(id,val)=>{const e=$(id); if(e) e.textContent=val;};
+
+  // 导航与 hero
+  $$('.tab').forEach((b,i)=>b.textContent=t.tabs[i]);
+  set('#nav-dl',t.dl); set('#hero-dl',t.dlBig); set('#hero-ins',t.howInstall);
+  set('#hero-l1',t.heroL1); set('#hero-l2',t.heroL2);
+  set('#tagline',pick(S.plugin,'tagline'));
+  set('#st-atoms',t.statAtoms); set('#st-q',t.statQ); set('#st-dl',t.statDl); set('#st-ver',t.statVer);
+  set('#hs-atoms',S.files.length); set('#hs-q',S.quality.passed+'/'+S.quality.total);
+  set('#hs-dl',S.downloads); set('#hs-ver','v'+v);
+
+  // 概览
+  set('#h-what',t.whatIs); set('#what',pick(S.plugin,'whatIsThis'));
+  set('#h-job',t.whatJob); set('#h-before',t.before);
+  set('#h-pre',t.pre); set('#h-io',t.io);
+  $('#list-pre').innerHTML=t.preList.map(x=>`<li>${x}</li>`).join('');
+  $('#list-io').innerHTML=t.ioList.map(x=>`<li>${x}</li>`).join('');
+
+  const JOBS=LANG==='zh'?[
+    {q:'有个想法很模糊，要收敛成能立项的文档',cmd:'/pm-value',n:'价值锚点 → 现实检验 → 范围'},
+    {q:'要写 PRD，或者把用户流程讲清楚',cmd:'/pm-prd',n:'六段骨架 + 交互四列表'},
+    {q:'一个业务对象的状态、权限、字段没理清',cmd:'/pm-entity',n:'状态表 + 正反向转移'},
+    {q:'要做调研或对标，还想量化对方效果',cmd:'/pm-research',n:'目的先行 + 对照实验'},
+    {q:'要把方案变成能点的原型和交互说明',cmd:'@product-feature-helper',n:'外部技能，需另装'},
+    {q:'从零做一个新产品，不知道先干哪步',cmd:'从头做一个产品',n:'编排者按阶段路由'}
+  ]:[
+    {q:'A fuzzy idea that needs to become a document you can get approved',cmd:'/pm-value',n:'value anchor → reality check → scope'},
+    {q:'Writing a PRD, or making a user flow clear',cmd:'/pm-prd',n:'six-part skeleton + interaction table'},
+    {q:'States, permissions and fields of a business object are unclear',cmd:'/pm-entity',n:'state table + transitions'},
+    {q:'Research or a competitive teardown, with their results quantified',cmd:'/pm-research',n:'purpose first + controlled experiment'},
+    {q:'Turning a plan into a clickable prototype and interaction notes',cmd:'@product-feature-helper',n:'external skill, installed separately'},
+    {q:'Building something new with no idea which step comes first',cmd:'build a product from scratch',n:'the orchestrator routes by stage'}
+  ];
+  $('#jobs').innerHTML=JOBS.map(j=>`<div class="job" onclick="copyText('${j.cmd}')">
+    <span class="cpz"><svg><use href="#i-copy"/></svg></span>
+    <div class="q">${esc(j.q)}</div>
+    <div class="a"><span class="cmd">${esc(j.cmd)}</span><span class="n">${esc(j.n)}</span></div></div>`).join('');
+
+  // 技能
+  set('#h-flow',t.flowTitle); set('#flow-note',t.flowNote); set('#h-skills',t.skillList);
+  const keys=['research','value','prd','entity','helper'];
+  $('#flow').innerHTML=t.flow.map((f,i)=>
+    `<span class="fm"><b>${f}</b><span class="k">${keys[i]}</span></span>`+
+    (i<4?'<span class="ar"><svg><use href="#i-arrow-r"/></svg></span>':'')).join('');
+  const SKIN={'ai-pm':{ic:'i-cmd',cls:'orch'},'pm-research':{ic:'i-search',cls:'research'},
+    'pm-value':{ic:'i-target',cls:'value'},'pm-prd':{ic:'i-doc',cls:'prd'},
+    'pm-entity':{ic:'i-flow',cls:'entity'},'pfh':{ic:'i-layers',cls:'design'}};
+  $('#atoms').innerHTML=S.files.map(f=>{const k=SKIN[f.id]||{ic:'i-doc',cls:'prd'};return `
+    <div class="arow"><div class="ic ${k.cls}"><svg><use href="#${k.ic}"/></svg></div>
+      <div><h4>${f.title}
+        ${f.kind==='orchestrator'?`<span class="tag orch">${t.tagOrch}</span>`:''}
+        ${f.isNew?`<span class="tag new">${t.tagNew}</span>`:''}
+        ${f.external?`<span class="tag ext">${t.tagExt}</span>`:''}</h4>
+        <p>${esc(pick(f,'desc')||'')} ${f.lines?`（<code>${f.path}</code> · ${f.lines} ${LANG==='zh'?'行':'lines'}）`:''}</p></div>
+      ${f.out?`<div class="path"><code>${f.out}</code></div>`:''}</div>`;}).join('');
+
+  // 安装
+  set('#h-ins',t.insTitle); set('#zip-meta',t.zipMeta); set('#ins-dl',t.dlShort);
+  $('#ins-note').innerHTML=t.insNote;
+  $('#installs').innerHTML=S.install.map((it,i)=>`<div class="ins">
+    <div class="ih"><span class="n">${i+1}</span>${esc(pick(it,'host'))}<span class="tip">${esc(pick(it,'note'))}</span></div>
+    <div class="cmd"><span>${esc(pick(it,'cmd'))}</span><span class="cpy" onclick="copyText(this.previousElementSibling.textContent)"><svg><use href="#i-copy"/></svg></span></div></div>`).join('');
+
+  // 版本
+  $('#ver-list').innerHTML=S.versions.map(x=>`
+    <div class="ver"><div class="vh">
+      <span class="num">v${x.version}</span>
+      ${x.current?`<span class="cur-tag">${t.cur}</span>`:''}
+      <span style="font-weight:500;font-size:14.5px">${esc(pick(x,'title'))}</span>
+      <span class="vmeta">${esc(pick(x,'authorNote')||'')} ${esc(x.author||S.plugin.owner)} · ${x.date.replace(/-/g,'/')}</span></div>
+      <div class="vcommits">${(pick(x,'commits')||x.commits).map(c=>`<p>${esc(c)}</p>`).join('')}</div></div>`).join('');
+
+  // footer
+  set('#owner',S.plugin.owner); set('#foot-date',date);
+  set('#f-author',t.author); set('#f-updated',t.updated);
+  set('#f-dl',t.footDl); set('#f-ins',t.footIns); set('#f-q',t.footQ);
+  set('#f-rv',t.footRv); set('#f-cr',t.footCr);
+  const c=S.credits;
+  $('#foot-license').innerHTML=`${LANG==='zh'?'基于':'Based on'} <a href="${c.upstream.repo}" target="_blank" rel="noopener">${c.upstream.author}/ai-pm</a> · <a href="${c.upstream.licenseDeed}" target="_blank" rel="noopener">${c.upstream.license}</a>`;
+
+  renderEval(); renderQuality(); renderReviews(); renderCredits();
+}
+
+function reviewAvg(){return S.reviews.length?(S.reviews.reduce((a,r)=>a+(r.feature+r.effect+r.stability)/3,0)/S.reviews.length):0;}
+
+function renderEval(){
+  const t=T(), e=S.dynamicEval;
+  $('#eval-bar').innerHTML='';
+  $('#eval-body').innerHTML=`
+    <div class="planned"><h3>${esc(pick(e,'statusLabel'))}</h3><p>${esc(pick(e,'note'))}</p></div>
+    <div class="sect-h">${t.evDesign}</div>
+    <table class="evd"><thead><tr>${t.evH.map(x=>`<th>${x}</th>`).join('')}</tr></thead>
+      <tbody>${e.design.map(d=>`<tr><td class="d">${esc(pick(d,'dim'))}</td><td>${esc(pick(d,'question'))}</td>
+        <td>${esc(pick(d,'method'))}</td><td>${esc(pick(d,'metric'))}</td></tr>`).join('')}</tbody></table>
+    <div class="note">${t.evNote}</div>`;
+}
+
+function renderQuality(){
+  const t=T(), q=S.quality;
+  const dimCard=d=>`<div class="dim"><div class="dn">${esc(pick(d,'dim'))}</div>
+    <div class="bar"><i style="width:${Math.round(d.pass/d.total*100)}%"></i></div>
+    <div class="dv">${d.pass}/${d.total}</div></div>`;
+  const cnt=g=>g.items.filter(d=>d.pass>=d.total).length;
+  const label=g=>g.items.every(d=>d.pass>=d.total)?t.allPass:`${cnt(g)}/${g.items.length} ${t.passSuffix}`;
+  $('#pane-quality').innerHTML=`
+    <div class="qc-top"><span class="t">${t.qcOverview}</span><span class="when">${t.qcWhen} ${q.date.replace(/-/g,'/')}</span></div>
+    <div class="qc-overview">
+      <div class="qc-num"><span class="n">${q.passed}/${q.total}</span>
+        <div><div class="t1">${esc(pick(q,'label'))}</div><div class="t2">${esc(pick(q,'summary'))}</div></div></div>
+      <div class="qc-p0">
+        <div class="c"><div class="h"><i class="p0"></i>${t.p0}</div><div class="v">${label(q.groups[0])}</div></div>
+        <div class="c"><div class="h"><i class="p1"></i>${t.p1}</div><div class="v">${label(q.groups[1])}</div></div>
+        <div class="c"><div class="h"><i class="p2"></i>${t.p2}</div><div class="v">${label(q.groups[2])}</div></div>
+      </div>
+      <div class="qc-dims">${q.groups[0].items.map(dimCard).join('')}</div>
+    </div>
+    ${q.groups.map(g=>`
+      <div class="lvl lvl${g.level.slice(1)}">
+        <div class="lvl-h"><span class="lvl-tag">${g.level}</span><b>${esc(pick(g,'levelLabel'))}</b><span class="ln">${esc(pick(g,'levelNote'))}</span></div>
+        ${g.items.map(d=>{const ok=d.pass>=d.total;return `<div class="lvl-row"><div class="l">${esc(pick(d,'dim'))}</div>
+          <div class="pass">${d.pass}/${d.total} <span class="${ok?'ok':'no'}">${ok?t.passWord:t.todo}</span></div></div>`;}).join('')}
+      </div>`).join('')}
+    <div class="note">${t.qcNote}</div>`;
+}
+
+function renderReviews(){
+  const t=T(), rs=S.reviews, avg=reviewAvg();
+  const stars3=k=>`<span class="mini-stars">${[1,2,3,4,5].map(i=>`<span class="${i<=myRate[k]?'on':''}" data-k="${k}" data-v="${i}">★</span>`).join('')}</span>`;
+  const f=k=>(rs.reduce((a,r)=>a+r[k],0)/(rs.length||1)).toFixed(1);
+  $('#pane-reviews').innerHTML=`
+    <div class="rsummary">
+      <div><div class="avg">${avg.toFixed(1)}</div><div class="stars">${stars(avg)}</div>
+        <div class="rc">${rs.length} ${t.rvCount}</div></div>
+      <div class="dims3">
+        <div class="d3">${t.rvF}<b>${f('feature')}</b></div>
+        <div class="d3">${t.rvE}<b>${f('effect')}</b></div>
+        <div class="d3">${t.rvS}<b>${f('stability')}</b></div>
+      </div>
+    </div>
+    <div class="rform">
+      <input id="rv-author" class="rv-author" placeholder="${t.rvName}" maxlength="40">
+      <textarea id="rv-text" placeholder="${t.rvText}"></textarea>
+      <div class="row">
+        <div class="rate-grp">${t.rvF} ${stars3('feature')}</div>
+        <div class="rate-grp">${t.rvE} ${stars3('effect')}</div>
+        <div class="rate-grp">${t.rvS} ${stars3('stability')}</div>
+        <button class="send" id="rv-send">${t.rvSend}</button>
+      </div>
+    </div>
+    <div class="rlist-h">${t.rvAll}</div>
+    <div id="review-list">${rs.length?rs.map(r=>`
+      <div class="review"><div class="rh">
+        <div class="av"></div>
+        <span class="ra">${esc(r.author)}</span>${r.owner?`<span class="owner-tag">${t.ownerTag}</span>`:''}
+        <span class="rstars">${stars((r.feature+r.effect+r.stability)/3)}</span>
+        <span class="rdate">${r.date}</span></div><p>${esc(r.text)}</p></div>`).join('')
+      :`<div class="empty">${t.rvEmpty}</div>`}</div>`;
+  ['feature','effect','stability'].forEach(k=>{
+    $$(`[data-k="${k}"]`).forEach(s=>s.onclick=()=>{myRate[k]=+s.dataset.v;
+      $$(`[data-k="${k}"]`).forEach(x=>x.classList.toggle('on',+x.dataset.v<=myRate[k]));});
+  });
+  $('#rv-send').onclick=submitReview;
+}
+
+/* ---------- 版权与鸣谢 ---------- */
+function renderCredits(){
+  const t=T(), c=S.credits, u=c.upstream;
+  const stmt=LANG==='zh'?c.statementZh:c.statementEn;
+  const thanks=LANG==='zh'?c.thanksZh:c.thanksEn;
+  const contribText=LANG==='zh'
+    ? `原始仓库在 GitHub 上公开，欢迎去那里提 Issue 或 Pull Request——方法论层面的改进，回到源头讨论最合适。`
+    : `The original repository is public on GitHub; issues and pull requests are welcome there — methodology-level changes belong upstream.`;
+  const forkLine=c.contribute.forkRepo
+    ? `<a class="cbtn" href="${c.contribute.forkRepo}" target="_blank" rel="noopener"><svg><use href="#i-git"/></svg>${LANG==='zh'?'本套件仓库':'This kit'}</a>`
+    : `<span class="cnote">${LANG==='zh'?c.contribute.forkRepoNote:'This kit has no public repository yet; it is distributed as a download for now, and the address will be filled in once one exists.'}</span>`;
+  $('#pane-credits').innerHTML=`
+    <div class="sect-h">${t.creditsTitle}</div>
+    <div class="cred">
+      <div class="cred-head">
+        <div class="cav"></div>
+        <div><div class="cname">${esc(u.author)}</div>
+          <div class="crole">${LANG==='zh'?'初版 v1.0.0 作者':'author of the first release, v1.0.0'}</div></div>
+        <a class="cbtn" href="${u.repo}" target="_blank" rel="noopener"><svg><use href="#i-git"/></svg>${t.viewRepo}</a>
+      </div>
+      ${stmt.map(x=>`<p>${esc(x)}</p>`).join('')}
+    </div>
+
+    <div class="sect-h">${t.licenseTitle}</div>
+    <div class="cred lic">
+      <div class="lic-tag">${u.license}</div>
+      <div class="lic-body">
+        <div class="lic-name">${u.licenseName}</div>
+        <ul>
+          <li><b>${LANG==='zh'?'署名':'Attribution'}</b> — ${LANG==='zh'?'保留原作者署名与原作链接':'credit the original author and link to the original'}</li>
+          <li><b>${LANG==='zh'?'非商业':'NonCommercial'}</b> — ${LANG==='zh'?'不得用于商业用途':'not for commercial use'}</li>
+          <li><b>${LANG==='zh'?'相同条款':'Same terms'}</b> — ${LANG==='zh'?'本衍生作品同样以 CC BY-NC 4.0 授权':'this adaptation is released under CC BY-NC 4.0 as well'}</li>
+        </ul>
+        <a class="clink" href="${u.licenseUrl}" target="_blank" rel="noopener">${t.viewLicense} ↗</a>
+      </div>
+    </div>
+
+    <div class="sect-h">${t.thanksTitle}</div>
+    <div class="cred thanks"><p>${esc(thanks)}</p></div>
+
+    <div class="sect-h">${t.contribTitle}</div>
+    <div class="cred">
+      <p>${contribText}</p>
+      <div class="cbtns">
+        <a class="cbtn" href="${c.contribute.upstreamRepo}" target="_blank" rel="noopener"><svg><use href="#i-git"/></svg>${LANG==='zh'?'原始仓库':'Upstream repo'}</a>
+        ${forkLine}
+      </div>
+    </div>`;
+}
+
+async function submitReview(){
+  const t=T(), body=$('#rv-text').value.trim();
+  if(!body){toast(t.toastNeedText);return;}
+  if(window.__READONLY__ && !API_BASE){toast(t.toastReadonly);return;}
+  if(window.__OFFLINE__){toast(t.toastOffRv);return;}
+  const who=$('#rv-author').value.trim();
+  try{
+    const r=await fetch(API_BASE+'/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({author:who,text:body,version:S.plugin.latestVersion,
+        feature:myRate.feature,effect:myRate.effect,stability:myRate.stability})});
+    if(!r.ok){
+      const e=await r.json().catch(()=>({}));
+      toast(r.status===429?t.toastRate:(r.status===409?t.toastDup:t.toastFail));return;}
+    const d=await r.json();
+    S.reviews=d.reviews; if(d.downloads!=null) S.downloads=d.downloads;
+    renderReviews(); toast(t.toastSaved);
+  }catch(e){toast(t.toastFail);}
+}
+
+function go(p){
+  $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.p===p));
+  $$('.pane').forEach(x=>x.classList.remove('active'));
+  $('#pane-'+p).classList.add('active');
+  scrollTo({top:$('.wrap').getBoundingClientRect().top+scrollY-92,behavior:'smooth'});
+}
+$$('.tab').forEach(t=>t.onclick=()=>go(t.dataset.p));
+$$('[data-jump]').forEach(a=>a.onclick=()=>go(a.dataset.jump));
+$$('#lang button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
+document.addEventListener('click',e=>{
+  const head=e.target.closest('.acc-head');
+  if(head) head.parentElement.classList.toggle('open');
+});
+function openInstall(){go('install');}
+function copyText(t){navigator.clipboard.writeText(t).then(()=>toast(T().toastCopied+t.slice(0,40))).catch(()=>{});}
+function downloadZip(){
+  if(window.__READONLY__ && !API_BASE){
+    window.location.href='download/'+S.plugin.downloadFile;
+    toast(T().toastDl); return;
+  }
+  if(!API_BASE && window.__OFFLINE__){toast(T().toastOffDl);return;}
+  if(API_BASE){
+    window.location.href='download/'+S.plugin.downloadFile;
+    fetch(API_BASE+'/api/download',{method:'POST'})
+      .then(r=>r.json()).then(d=>{S.downloads=d.downloads;
+        const e=$('#hs-dl'); if(e) e.textContent=d.downloads;}).catch(()=>{});
+    toast(T().toastDl); return;
+  }
+  window.location.href='/api/download';
+  setTimeout(()=>{toast(T().toastDl);fetch('/api/store').then(r=>r.json()).then(s=>{
+    S=s;const e=$('#hs-dl'); if(e) e.textContent=s.downloads;});},600);}
+load();
+</script>
+</body>
+</html>
