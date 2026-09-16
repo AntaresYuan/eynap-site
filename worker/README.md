@@ -69,6 +69,20 @@ const API_BASE = 'https://eynap-api.xxx.workers.dev';
 m2m100 输入输出同价，8B 输入只要它的 1/7，所以按每条约 200 token 算，
 8B 反而比"专用翻译模型"多翻五成。70B 质量略好但只能翻两百条，不划算。
 
+### 非中英语言
+
+界面只有中英两种，但评价可以是任何语言。`guessLang` 按字符集判语种，
+返回 `zh` / `en` / `ja` / `ko` / `ru` / `ar` / `th` / `eur` / `und`：
+
+- **假名和谚文先于汉字判断**——日语夹汉字很常见，先判汉字会把日语误认成中文
+- `eur` 表示"带变音符的欧洲语言"（法德西等），中英界面下都需要翻
+- `und` 是纯 emoji、纯数字这类判不出来的，**不翻**，免得白花额度
+
+实测 8B 对日、韩、俄、法、西、德都能正确互译，术语也保留。
+
+已知限制：不带重音符的西语（"Muy util para el equipo"）会被判成英语，
+靠字符集做不到更准。影响有限——中文界面下照常翻译，只有英文界面会漏。
+
 ### 省额度的三层
 
 1. 前端只在评价语种与当前界面不同时才显示翻译按钮
@@ -109,7 +123,7 @@ wrangler d1 execute eynap --remote --file=seed.sql
 
 ```bash
 node test.mjs               # 端到端逻辑，39 项（模拟 D1 与 AI，不联网）
-node test-translate.mjs     # 输出清洗与语种判定边界，54 项
+node test-translate.mjs     # 语种判定、清洗、幻觉防护，79 项
 
 # 线上真实模型抽查（会消耗 neurons）
 bash seed-probe.sh          # 直接写库插入样本，绕过反垃圾限流

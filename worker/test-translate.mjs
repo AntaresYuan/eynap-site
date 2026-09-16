@@ -3,7 +3,7 @@
  * 换成指令模型后，分句/占位符那套补丁已删除，测试相应收敛。
  */
 import { sanitizeName, fixAfterTranslate, guessLang, cleanOutput,
-         isHallucination } from './index.js';
+         isHallucination, needsTranslation } from './index.js';
 
 let pass = 0, fail = 0;
 const ok = (cond, name, extra = '') => {
@@ -48,12 +48,40 @@ console.log('\n语种判定：');
 
 ok(guessLang('全是中文的一句话') === 'zh', '纯中文');
 ok(guessLang('All English here') === 'en', '纯英文');
-ok(guessLang('') === 'en', '空串默认英文');
+ok(guessLang('') === 'und', '空串判为未知（而非默认英文，避免白翻）');
 ok(guessLang('pm-prd pm-entity SKILL.md') === 'en', '纯术语判为英文');
 ok(guessLang('用 pm-prd 写 PRD 文档很顺手') === 'zh', '中文夹术语仍判中文');
 ok(guessLang('The pm-prd skill 很好用') === 'en', '英文为主夹少量中文判英文');
-ok(guessLang('123 456 !!!') === 'en', '纯符号数字默认英文');
+ok(guessLang('123 456 !!!') === 'und', '纯符号数字判为未知');
 ok(guessLang('好') === 'zh', '单个汉字');
+
+// 非中英语言：界面只有中英，但评价可能是任何语言
+ok(guessLang('日本語のレビューです') === 'ja', '日语（假名）');
+ok(guessLang('このpm-prdは使いやすい') === 'ja',
+   '日语夹汉字不被误判为中文', guessLang('このpm-prdは使いやすい'));
+ok(guessLang('한국어 리뷰입니다') === 'ko', '韩语');
+ok(guessLang('Очень полезный инструмент') === 'ru', '俄语');
+ok(guessLang('هذه أداة مفيدة') === 'ar', '阿拉伯语');
+ok(guessLang('สวัสดีครับ') === 'th', '泰语');
+ok(guessLang('Très utile, je recommande') === 'eur', '带变音符的欧洲语言');
+ok(guessLang('Sehr nützlich für das Team') === 'eur', '德语（含 ü）');
+ok(guessLang('👍👍👍') === 'und', '纯 emoji 判为未知');
+ok(guessLang('12345 !!!') === 'und', '纯数字标点判为未知');
+
+// ───────── 是否需要翻译 ─────────
+console.log('\n翻译判定：');
+
+ok(needsTranslation('en', 'zh'), '英文评价 + 中文界面 → 翻');
+ok(needsTranslation('zh', 'en'), '中文评价 + 英文界面 → 翻');
+ok(needsTranslation('ja', 'zh'), '日语评价 + 中文界面 → 翻');
+ok(needsTranslation('ja', 'en'), '日语评价 + 英文界面 → 翻');
+ok(needsTranslation('ru', 'zh'), '俄语评价 + 中文界面 → 翻');
+ok(needsTranslation('eur', 'en'), '欧洲语言 + 英文界面 → 翻');
+ok(!needsTranslation('zh', 'zh'), '同语种不翻');
+ok(!needsTranslation('en', 'en'), '同语种不翻（英）');
+ok(!needsTranslation('und', 'zh'), '语种未知不翻，不浪费额度');
+ok(!needsTranslation('und', 'en'), '语种未知不翻（英界面）');
+ok(!needsTranslation('', 'zh'), '空语种不翻');
 
 // ───────── 译后补词 ─────────
 console.log('\n译后补词：');
@@ -79,21 +107,30 @@ console.log('\n幻觉防护：');
 
 ok(isHallucination(
    '我们收到了有关PM-PRD的反馈，内容是关于SKILL.md文件中缺少了技能树的详细描述。',
-   'One sentence only', 'zh'), '短原文被扩写成长段落 → 判为幻觉');
-ok(!isHallucination('只有一个句子', 'One sentence only', 'zh'), '正常英译中不误判');
+   'One sentence only', 'zh', 'en'), '短原文被扩写成长段落 → 判为幻觉');
+ok(!isHallucination('只有一个句子', 'One sentence only', 'zh', 'en'), '正常英译中不误判');
 ok(!isHallucination(
    'The skill split is clean and I can call pm-prd alone without the pipeline.',
-   '拆分很清楚，我可以单独调用 pm-prd，不用跑整条流水线。', 'en'),
+   '拆分很清楚，我可以单独调用 pm-prd，不用跑整条流水线。', 'en', 'zh'),
    '正常中译英（会变长）不误判');
-// 短中文译成英文天然膨胀，不能按英译中的尺子量
-ok(!isHallucination('Great! Really useful. Would recommend.', '很棒！真有用。推荐。', 'en'),
+ok(!isHallucination('Great! Really useful. Would recommend.', '很棒！真有用。推荐。', 'en', 'zh'),
    '短中文译英膨胀不误判');
-ok(!isHallucination('It is very clear and easy to get started.', '拆分很清楚，上手快。', 'en'),
+ok(!isHallucination('It is very clear and easy to get started.', '拆分很清楚，上手快。', 'en', 'zh'),
    '短中文译英（4 倍长）不误判');
-ok(isHallucination('', 'anything', 'zh'), '空译文判为失败');
-ok(isHallucination('x', '这是一段二十个字以上的中文原文内容用于测试比例下限', 'en'),
+// 日韩同属高密度书写，阈值要和中文一致
+ok(!isHallucination('It was very convenient and easy to use.',
+   'とても便利でした。', 'en', 'ja'), '日译英膨胀不误判');
+ok(!isHallucination('这是一条日语评价，非常方便。',
+   '日本語のレビューです。とても便利でした。', 'zh', 'ja'), '日译中不误判');
+// 疏→疏：俄译英长度相当，阈值更紧
+ok(isHallucination('A'.repeat(200), 'Очень полезный инструмент.', 'en', 'ru'),
+   '俄译英长度暴涨判为幻觉');
+ok(!isHallucination('A very useful tool for the team.',
+   'Очень полезный инструмент для команды.', 'en', 'ru'), '俄译英正常不误判');
+ok(isHallucination('', 'anything', 'zh', 'en'), '空译文判为失败');
+ok(isHallucination('x', '这是一段二十个字以上的中文原文内容用于测试比例下限', 'en', 'zh'),
    '译文过短判为幻觉');
-ok(!isHallucination('好', '好的', 'zh'), '极短原文不做下限判断');
+ok(!isHallucination('好', '好的', 'zh', 'en'), '极短原文不做下限判断');
 
 // ───────── 名字清洗 ─────────
 console.log('\n名字清洗：');

@@ -1220,11 +1220,24 @@ function avatarFor(name){
 }
 
 /* 前端判断评价语种，与 worker 保持同一规则 */
+/* 与 worker 的 guessLang 保持同一套规则。界面只有中英，
+   但评价可能是任何语言，所以如实报语种而不是二选一。 */
 function guessTextLang(text){
-  const cjk=(text.match(/[\u4e00-\u9fff]/g)||[]).length;
-  const latin=(text.match(/[A-Za-z]/g)||[]).length;
-  if(cjk===0) return 'en';
-  return cjk*4 > latin ? 'zh' : 'en';
+  const s=String(text||''), n=re=>(s.match(re)||[]).length;
+  if(n(/[\u3040-\u309f\u30a0-\u30ff]/g)>0) return 'ja';   // 假名先于汉字
+  if(n(/[\uac00-\ud7af\u1100-\u11ff]/g)>0) return 'ko';
+  if(n(/[\u0400-\u04ff]/g)>0) return 'ru';
+  if(n(/[\u0600-\u06ff\u0750-\u077f]/g)>0) return 'ar';
+  if(n(/[\u0e00-\u0e7f]/g)>0) return 'th';
+  const han=n(/[\u4e00-\u9fff\u3400-\u4dbf]/g), latin=n(/[A-Za-z]/g);
+  if(han>0 && han*4>latin) return 'zh';
+  if(latin>0) return /[àâäçéèêëîïôöùûüÿñãõáíóúýåæøßœ]/i.test(s) ? 'eur' : 'en';
+  return 'und';
+}
+
+/* 该不该翻。und 判不出来，翻了也是碰运气 */
+function needsTr(srcLang, uiLang){
+  return !!srcLang && srcLang !== 'und' && srcLang !== uiLang;
 }
 
 /* 展开 / 收起译文。译文取回后存在 DOM 上，重复切换不再请求。 */
@@ -1488,7 +1501,7 @@ function renderReviews(){
       // 只在评价语种与当前界面不同时才给翻译入口
       // 外语评价默认显示译文：有缓存直接用，没有则标记待翻译
       const foreign = r.id != null && API_BASE &&
-                      (r.lang || guessTextLang(r.text)) !== LANG;
+                      needsTr(r.lang || guessTextLang(r.text), LANG);
       const cached  = LANG === 'zh' ? r.trans_zh : r.trans_en;
       const showTr  = foreign && !!cached;
       const pending = foreign && !cached;
