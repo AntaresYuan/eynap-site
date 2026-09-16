@@ -83,7 +83,11 @@ const FIX_AFTER = {
     [/舞台阶段|决定舞台/g, '决定阶段'],
     [/路线到/g, '路由到'],
     [/技能清洁分离/g, '技能职责分离'],
-    [/易于延伸/g, '易于扩展']
+    [/易于延伸/g, '易于扩展'],
+    [/拨打|打电话给|呼叫/g, '调用'],          // call 在这里是调用，不是打电话
+    [/管道/g, '流水线'],                      // pipeline
+    [/技能分裂|技能分割/g, '技能拆分'],
+    [/干净的|清洁的/g, '清晰的']
   ],
   en: [
     [/orchestra conductor|the orchestra/gi, 'the orchestrator'],
@@ -169,6 +173,30 @@ async function makeHandle(env, text) {
   }
 }
 
+/* m2m100 是句子级模型，一次喂整段会丢句子——实测两句话的评价只译出后一句。
+   所以按句切开逐句翻，再按原样拼回去。 */
+function splitSentences(text, lang) {
+  const parts = lang === 'zh'
+    // 中文：句号问号感叹号分号断句，保留标点
+    ? text.split(/(?<=[。！？；])/)
+    // 英文：句点问号叹号 + 空格断句
+    : text.split(/(?<=[.!?])\s+/);
+  return parts.map(x => x.trim()).filter(Boolean);
+}
+
+async function translateOne(env, piece, source, target) {
+  const guarded = protectTerms(piece);
+  const r = await env.AI.run('@cf/meta/m2m100-1.2b', {
+    text: guarded.text,
+    source_lang: source,
+    target_lang: target
+  });
+  let out = (r && r.translated_text || '').trim();
+  if (!out || out.startsWith('ERROR')) throw new Error('empty piece');
+  out = restoreTerms(out, guarded.terms);
+  return fixAfterTranslate(out, target);
+}
+
 /* 翻译一条评价。结果写回 reviews 表缓存，同一条只调一次模型。 */
 async function translateReview(env, id, target) {
   const row = await env.DB.prepare(
@@ -183,21 +211,19 @@ async function translateReview(env, id, target) {
   // 原文已经是目标语言，直接回原文，不浪费额度
   if (source === target) return { text: row.text, same: true };
 
-  const guarded = protectTerms(row.text);
+  const pieces = splitSentences(row.text, source);
   let out;
   try {
-    const r = await env.AI.run('@cf/meta/m2m100-1.2b', {
-      text: guarded.text,
-      source_lang: source,
-      target_lang: target
-    });
-    out = (r && r.translated_text || '').trim();
-    out = restoreTerms(out, guarded.terms);
-    out = fixAfterTranslate(out, target);
+    // 逐句翻，句子之间互不影响，不会整段丢内容
+    const done = await Promise.all(
+      pieces.map(p => translateOne(env, p, source, target))
+    );
+    // 中文句间不加空格，英文加
+    out = target === 'zh' ? done.join('') : done.join(' ');
   } catch (e) {
     return { error: 'translate failed', status: 503 };
   }
-  if (!out || out.startsWith('ERROR')) return { error: 'translate failed', status: 503 };
+  if (!out) return { error: 'translate failed', status: 503 };
 
   await env.DB.prepare(`UPDATE reviews SET ${col} = ? WHERE id = ?`)
     .bind(out, id).run();

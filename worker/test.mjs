@@ -26,6 +26,7 @@ const D1 = {
 
 // 模拟 Workers AI：记录调用次数，用来验证缓存是否真的生效
 let aiCalls = 0, nameCalls = 0, nameReply = 'Quiet Otter';
+let trCalls = 0, lastPieces = [];
 const AI = {
   async run(model, input) {
     aiCalls++;
@@ -35,6 +36,8 @@ const AI = {
     }
     if (model !== '@cf/meta/m2m100-1.2b') throw new Error('unexpected model: ' + model);
     if (!input.text) throw new Error('empty text');
+    trCalls++;
+    lastPieces.push(input.text);
     return { translated_text: `[${input.source_lang}->${input.target_lang}] ` + input.text };
   }
 };
@@ -282,6 +285,47 @@ r = await call('POST', '/api/reviews',
   { text:'第六条，测数字过滤。', feature:3, effect:3, stability:3 }, '7.7.7.6');
 d = await r.json();
 ok(!/\d/.test(d.reviews[0].author), '带数字的返回被拒并回落', d.reviews[0].author);
+
+// ---- 分句翻译 ----
+console.log('\n分句：');
+
+// 36 多句英文按句拆开，每句各调一次
+await call('POST', '/api/reviews',
+  { author:'multi', text:'The skill split is clean. I can call pm-prd alone. No extra glue needed.',
+    feature:5, effect:5, stability:5 }, '6.6.6.1');
+r = await call('GET', '/api/reviews'); d = await r.json();
+const multi = d.reviews.find(x => x.author === 'multi');
+
+trCalls = 0; lastPieces = [];
+r = await call('POST', '/api/translate', { id: multi.id, target: 'zh' });
+d = await r.json();
+ok(trCalls === 3, '三句话拆成三次调用', '实际 ' + trCalls);
+
+// 37 每句都出现在译文里，一句不丢
+const allIn = ['The skill split is clean.','I can call pm-prd alone.','No extra glue needed.']
+  .every(sent => d.text.includes(sent));
+ok(allIn, '每句都在译文里，没有丢句', d.text.slice(0,90));
+
+// 38 中文多句同样拆开
+await call('POST', '/api/reviews',
+  { author:'multizh', text:'拆分很清楚。单点需求不用跑全流程；上手也快。',
+    feature:5, effect:5, stability:5 }, '6.6.6.2');
+r = await call('GET', '/api/reviews'); d = await r.json();
+const mzh = d.reviews.find(x => x.author === 'multizh');
+
+trCalls = 0;
+r = await call('POST', '/api/translate', { id: mzh.id, target: 'en' });
+d = await r.json();
+ok(trCalls === 3, '中文按句号与分号拆成三句', '实际 ' + trCalls);
+
+// 39 单句不受影响，仍只调一次
+await call('POST', '/api/reviews',
+  { author:'single', text:'Just one sentence here', feature:4, effect:4, stability:4 }, '6.6.6.3');
+r = await call('GET', '/api/reviews'); d = await r.json();
+const one = d.reviews.find(x => x.author === 'single');
+trCalls = 0;
+await call('POST', '/api/translate', { id: one.id, target: 'zh' });
+ok(trCalls === 1, '单句仍只调一次', '实际 ' + trCalls);
 
 console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`);
 process.exit(fail ? 1 : 0);
