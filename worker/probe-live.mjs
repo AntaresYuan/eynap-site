@@ -65,7 +65,15 @@ for (const [text, target, keep, label] of CASES) {
   const missing = keep.filter(k => !d.text.includes(k));
   // 句数允许差 1（标点转换有出入），但不能腰斩
   const sentOk = srcN === 0 || outN >= Math.max(1, srcN - 1);
-  const good = missing.length === 0 && sentOk && d.text.length > 2;
+  // 长度失控 = 模型没在翻译而在自由发挥。
+  // 阈值与 worker 的 isHallucination 保持一致：中译英天然膨胀，两个方向分开量。
+  const ratio = d.text.length / text.length;
+  const toEn = target === 'en';
+  const cap = toEn ? (text.length < 30 ? 6.0 : 4.0)
+                   : (text.length < 30 ? 1.8 : 3.0);
+  const floor = toEn ? 0.4 : 0.2;
+  const sane = ratio <= cap && !(text.length > 20 && ratio < floor);
+  const good = missing.length === 0 && sentOk && sane && d.text.length > 2;
 
   if (good) { pass++; console.log(`  ✓ ${label}`); }
   else {
@@ -73,6 +81,7 @@ for (const [text, target, keep, label] of CASES) {
     console.log(`  ✗ ${label}`);
     if (missing.length) console.log(`      术语丢失: ${missing.join(', ')}`);
     if (!sentOk) console.log(`      句数 ${srcN} → ${outN}`);
+    if (!sane) console.log(`      长度失控 ${text.length} → ${d.text.length}（疑似幻觉）`);
   }
   console.log(`      ${d.text}`);
 }

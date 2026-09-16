@@ -30,15 +30,22 @@ let trCalls = 0, lastPieces = [];
 const AI = {
   async run(model, input) {
     aiCalls++;
-    if (model === '@cf/meta/llama-3.2-1b-instruct') {
+    const sys = ((input.messages || [])[0] || {}).content || '';
+    if (sys.includes('handle')) {          // 起名请求
       nameCalls++;
-      return { response: nameReply };      // 由用例控制返回，测各种畸形输出
+      return { response: nameReply };
     }
-    if (model !== '@cf/meta/m2m100-1.2b') throw new Error('unexpected model: ' + model);
-    if (!input.text) throw new Error('empty text');
+    // 翻译也走指令模型，返回格式与起名一致
+    if (model !== '@cf/meta/llama-3.1-8b-instruct-fp8-fast')
+      throw new Error('unexpected model: ' + model);
     trCalls++;
-    lastPieces.push(input.text);
-    return { translated_text: `[${input.source_lang}->${input.target_lang}] ` + input.text };
+    const user = (input.messages || []).find(m => m.role === 'user');
+    if (!user || !user.content) throw new Error('empty text');
+    lastPieces.push(user.content);
+    // 真模型不会原样返回原文。mock 里插入标记字符打断原文串，
+    // 否则会被 cleanOutput 的「原文剔除」逻辑正确地清掉
+    const marked = user.content.split('').join('\u200b');   // 零宽空格
+    return { response: '«' + marked + '»TR' };
   }
 };
 
@@ -170,7 +177,9 @@ const enRow = d.reviews.find(x => x.author === 'enuser');
 aiCalls = 0;
 r = await call('POST', '/api/translate', { id: zhRow.id, target: 'en' });
 d = await r.json();
-ok(r.status === 200 && d.text.startsWith('[zh->en]'), '中文评价能译成英文', JSON.stringify(d));
+const strip = t => String(t).replace(/\u200b/g, '');
+ok(r.status === 200 && strip(d.text).includes('技能拆分得很清楚'),
+   '中文评价能译成英文', strip(d.text).slice(0,60));
 
 // 19 语种识别方向正确
 ok(aiCalls === 1, '首次翻译调用了一次模型', '实际 ' + aiCalls);
@@ -184,7 +193,7 @@ ok(d.cached === true && aiCalls === 0, '第二次读缓存，不再调模型', '
 // 21 英译中
 r = await call('POST', '/api/translate', { id: enRow.id, target: 'zh' });
 d = await r.json();
-ok(d.text.startsWith('[en->zh]'), '英文评价能译成中文', JSON.stringify(d));
+ok(strip(d.text).includes('routing is clean'), '英文评价能译成中文', strip(d.text).slice(0,60));
 
 // 22 原文即目标语言时不调模型
 aiCalls = 0;
@@ -227,8 +236,8 @@ ok(r.status === 503, '模型失败返回 503 而不是崩溃', '实际 ' + r.sta
 // 28 失败后没有写入半成品译文，重试仍能正常翻译
 r = await call('POST', '/api/translate', { id: freshZh.id, target: 'en' });
 d = await r.json();
-ok(r.status === 200 && d.text.startsWith('[zh->en]') && !d.cached,
-   '失败后未写脏数据，重试可正常翻译', JSON.stringify(d));
+ok(r.status === 200 && strip(d.text).includes('再来一条中文评价') && !d.cached,
+   '失败后未写脏数据，重试可正常翻译', strip(d.text).slice(0,60));
 
 // ---- 匿名花名 ----
 console.log('\n花名：');
@@ -286,10 +295,10 @@ r = await call('POST', '/api/reviews',
 d = await r.json();
 ok(!/\d/.test(d.reviews[0].author), '带数字的返回被拒并回落', d.reviews[0].author);
 
-// ---- 分句翻译 ----
-console.log('\n分句：');
+// ---- 整段翻译 ----
+console.log('\n翻译：');
 
-// 36 多句英文按句拆开，每句各调一次
+// 36 多句内容一次调用译完，不再拆句
 await call('POST', '/api/reviews',
   { author:'multi', text:'The skill split is clean. I can call pm-prd alone. No extra glue needed.',
     feature:5, effect:5, stability:5 }, '6.6.6.1');
@@ -299,34 +308,25 @@ const multi = d.reviews.find(x => x.author === 'multi');
 trCalls = 0; lastPieces = [];
 r = await call('POST', '/api/translate', { id: multi.id, target: 'zh' });
 d = await r.json();
-ok(trCalls === 3, '三句话拆成三次调用', '实际 ' + trCalls);
+ok(trCalls === 1, '整段一次调用，不再逐句', '实际 ' + trCalls);
 
-// 37 每句都出现在译文里，一句不丢
-// 补标点会把英文句点换成中文句号，所以比对句子主体而非完整标点
+// 37 整段内容都进了模型，没有被提前切掉
+ok(lastPieces[0] && lastPieces[0].includes('No extra glue needed'),
+   '完整原文传给模型', String(lastPieces[0]).slice(0, 60));
+
+// 38 译文里每句都在
 const allIn = ['The skill split is clean','I can call pm-prd alone','No extra glue needed']
-  .every(sent => d.text.includes(sent));
-ok(allIn, '每句都在译文里，没有丢句', d.text.slice(0,90));
+  .every(sent => strip(d.text).includes(sent));
+ok(allIn, '译文包含全部句子', d.text.slice(0, 80));
 
-// 38 中文多句同样拆开
-await call('POST', '/api/reviews',
-  { author:'multizh', text:'拆分很清楚。单点需求不用跑全流程；上手也快。',
-    feature:5, effect:5, stability:5 }, '6.6.6.2');
-r = await call('GET', '/api/reviews'); d = await r.json();
-const mzh = d.reviews.find(x => x.author === 'multizh');
-
-trCalls = 0;
-r = await call('POST', '/api/translate', { id: mzh.id, target: 'en' });
-d = await r.json();
-ok(trCalls === 3, '中文按句号与分号拆成三句', '实际 ' + trCalls);
-
-// 39 单句不受影响，仍只调一次
+// 39 单句同样只调一次
 await call('POST', '/api/reviews',
   { author:'single', text:'Just one sentence here', feature:4, effect:4, stability:4 }, '6.6.6.3');
 r = await call('GET', '/api/reviews'); d = await r.json();
 const one = d.reviews.find(x => x.author === 'single');
 trCalls = 0;
 await call('POST', '/api/translate', { id: one.id, target: 'zh' });
-ok(trCalls === 1, '单句仍只调一次', '实际 ' + trCalls);
+ok(trCalls === 1, '单句也只调一次', '实际 ' + trCalls);
 
 console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`);
 process.exit(fail ? 1 : 0);

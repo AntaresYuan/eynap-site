@@ -57,7 +57,7 @@ async function listReviews(env) {
   };
 }
 
-/* 判断文本主体语种：中日韩统一按中文处理（m2m100 的 zh 覆盖汉字） */
+/* 判断文本主体语种：中日韩统一按中文处理 */
 function guessLang(text) {
   const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length;
   const latin = (text.match(/[A-Za-z]/g) || []).length;
@@ -66,32 +66,64 @@ function guessLang(text) {
   return cjk * 4 > latin ? 'zh' : 'en';
 }
 
-/* 本项目的专有名词。m2m100 是通用模型，会把 orchestrator 译成「管弦乐队」，
-   技能名更是必然被拆开。翻译前替换成占位符，翻完还原。 */
-// 两类处理，分开做：
-// 1) 占位保护——只给带连字符的技能名，它们必被模型拆开。数量少，不影响句子完整度。
-const KEEP_TERMS = [
-  'pm-research','pm-value','pm-prd','pm-entity','pm-design','pm-orchestrator',
-  'SKILL.md','Eynap','eynap'
-];
+/* 换用指令模型后不再需要分句、占位符、逐句拼接那套补丁——
+   8B 能整段理解，一次调用译完全文。
+   实测每天 10000 neurons 可翻约 1280 条，比专用翻译模型 m2m100 还省，
+   质量却高一个档次（m2m100 会漏句、把 orchestrator 译成「管弦乐队」）。 */
+const TRANSLATE_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
 
-// 2) 译后修正——通用词翻译出来语义跑偏（orchestrator→管弦乐队），
-//    但占位保护会让 m2m100 丢句子，所以放它正常翻，翻完再纠回来。
+/* 译文长度是否明显失控。中英字符密度差异大（中文一字顶英文数字符），
+   所以按方向分别设阈值，只拦明显跑飞的情况，不误伤正常的长度波动。 */
+function isHallucination(out, src, target) {
+  if (!out) return true;
+  const o = out.length, i = src.length;
+  if (i === 0) return true;
+  const ratio = o / i;
+  // 中译英天然变长（一个汉字顶好几个英文字符），英译中天然变短，
+  // 两个方向的阈值不能共用一套
+  const toEn = target === 'en';
+  const cap = toEn ? (i < 30 ? 6.0 : 4.0)
+                   : (i < 30 ? 1.8 : 3.0);
+  const floor = toEn ? 0.4 : 0.2;
+  return ratio > cap || (i > 20 && ratio < floor);
+}
+
+/* 指令模型偶尔会加引号、前言或把原文一起带回来，统一清掉 */
+function cleanOutput(raw, sourceText) {
+  let s = String(raw || '').trim();
+  if (!s) return '';
+  // 常见前言：Here is the translation: / 翻译：/ Translation:
+  s = s.replace(/^(?:here(?:'s| is) the translation[:：]?|translation[:：]|译文[:：]|翻译[:：])\s*/i, '');
+  // 整体被引号包起来
+  if (/^["'「『]/.test(s) && /["'」』]$/.test(s)) s = s.slice(1, -1).trim();
+  // 模型把原文整段贴回来时只取译文部分。
+  // 只在原文够长、且剔除后仍剩足够内容时才动手——否则「清晰」这种短词
+  // 会把译文里的正常字抠掉，变成「技能拆分很 。」
+  if (sourceText && sourceText.length >= 12) {
+    const idx = s.indexOf(sourceText);
+    if (idx >= 0) {
+      const rest = (s.slice(0, idx) + ' ' + s.slice(idx + sourceText.length))
+        .replace(/\s{2,}/g, ' ').trim();
+      if (rest.length >= 4) s = rest;
+    }
+  }
+  return s.trim();
+}
+
+/* 8B 指令模型基本能保留原样，但偶尔留着英文原词不译，
+   用一张小表在译后补齐。比给弱模型打一堆补丁简单得多。 */
 const FIX_AFTER = {
   zh: [
-    [/管弦乐队|管弦乐团|交响乐团|乐团指挥|协调者|指挥家|乐队/g, '编排者'],
-    [/舞台阶段|决定舞台/g, '决定阶段'],
-    [/路线到|走向一个|导向到/g, '路由到'],
-    [/技能清洁分离/g, '技能职责分离'],
-    [/易于延伸/g, '易于扩展'],
-    [/拨打|打电话给|呼叫/g, '调用'],          // call 在这里是调用，不是打电话
-    [/管道/g, '流水线'],                      // pipeline
-    [/技能分裂|技能分割/g, '技能拆分'],
-    [/干净的|清洁的/g, '清晰的']
+    [/\borchestrator\b/gi, '编排器'],
+    [/\bpipeline\b/gi, '流水线'],
+    [/\bstate machine\b/gi, '状态机'],
+    [/整个管道|条管道|个管道/g, '整条流水线'],
+    [/管弦乐队|管弦乐团|乐队/g, '编排器'],
+    [/拨打|打电话给/g, '调用']
   ],
   en: [
-    [/orchestra conductor|the orchestra/gi, 'the orchestrator'],
-    [/flow line|assembly line/gi, 'pipeline']
+    [/\bthe orchestra\b/gi, 'the orchestrator'],
+    [/\bflow line\b/gi, 'pipeline']
   ]
 };
 
@@ -99,39 +131,6 @@ function fixAfterTranslate(text, target) {
   let out = text;
   (FIX_AFTER[target] || []).forEach(([re, to]) => { out = out.replace(re, to); });
   return out;
-}
-
-function protectTerms(text) {
-  const found = [];
-  let out = text;
-  // 长词优先，避免 pm-prd 被 prd 抢先匹配
-  [...KEEP_TERMS].sort((a,b)=>b.length-a.length).forEach(term => {
-    const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
-    if (re.test(out)) {
-      // 占位符实测会被模型啃掉字符（XQZ0ZQX → XZ0ZQX），所以不追求原样还原，
-      // 改用「长且低频」的形式，配合下面的模糊匹配兜底
-      const token = `ZZQ${found.length}QZZ`;
-      out = out.replace(re, token);
-      found.push(term);
-    }
-  });
-  return { text: out, terms: found };
-}
-
-function restoreTerms(text, terms) {
-  let out = text;
-  terms.forEach((term, i) => {
-    // 第一遍：完整形态（允许字符间插空格、改大小写）
-    out = out.replace(new RegExp(`Z\\s*Z\\s*Q\\s*${i}\\s*Q\\s*Z\\s*Z`, 'gi'), term);
-    // 第二遍：模型啃掉个别字符时兜底——认「若干个 Z/Q + 数字 + 若干个 Z/Q」
-    out = out.replace(new RegExp(`[ZQ]{1,3}\\s*${i}\\s*[ZQ]{1,3}`, 'gi'), term);
-    // 第三遍：还原后术语两侧可能粘着没吃干净的 Z/Q（实测 SKILL.mdZ）
-    const esc = term.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');
-    out = out.replace(new RegExp(`(${esc})[ZQ]{1,3}(?![A-Za-z])`, 'g'), '$1');
-    out = out.replace(new RegExp(`(?<![A-Za-z])[ZQ]{1,3}(${esc})`, 'g'), '$1');
-  });
-  // 仍有残留说明连数字都被改了，去掉避免露出乱码
-  return out.replace(/\b[ZQ]{2,4}\d{0,2}[ZQ]{0,4}\b/g, '').replace(/\s{2,}/g, ' ').trim();
 }
 
 /* 未填名字时用 AI 起个花名。
@@ -183,67 +182,6 @@ async function makeHandle(env, text) {
   }
 }
 
-/* m2m100 是句子级模型，一次喂整段会丢句子——实测两句话的评价只译出后一句。
-   所以按句切开逐句翻，再按原样拼回去。 */
-// 英文里句点不一定是句尾：缩写、称谓、首字母缩略都会误伤
-const ABBREV = /(?:^|\s)(?:e\.g|i\.e|etc|vs|cf|Mr|Mrs|Ms|Dr|Prof|St|Jr|Sr|No|Fig|approx|al)\.$/i;
-
-function splitSentences(text, lang) {
-  if (lang === 'zh') {
-    return text.split(/(?<=[。！？；])/).map(x => x.trim()).filter(Boolean);
-  }
-  // 英文：先按「标点+空白」粗切，再把误切的缩写拼回去
-  const rough = text.split(/(?<=[.!?])(\s+)/);
-  const out = [];
-  let buf = '';
-  for (let i = 0; i < rough.length; i += 2) {
-    const seg = rough[i];
-    const gap = rough[i + 1] ?? '';
-    buf += seg;
-    const next = rough[i + 2] || '';
-    const isAbbrev = ABBREV.test(buf);
-    // 单个大写字母后的点（首字母缩写）也不算句尾
-    const isInitial = /(?:^|\s)[A-Z]\.$/.test(buf);
-    // 下一段以小写开头，说明上一个点多半不是句尾
-    const nextLower = /^[a-z]/.test(next);
-    if (isAbbrev || isInitial || nextLower) { buf += gap; continue; }
-    out.push(buf); buf = '';
-  }
-  if (buf.trim()) out.push(buf);
-  return out.map(x => x.trim()).filter(Boolean);
-}
-
-async function translateOne(env, piece, source, target) {
-  const guarded = protectTerms(piece);
-  const r = await env.AI.run('@cf/meta/m2m100-1.2b', {
-    text: guarded.text,
-    source_lang: source,
-    target_lang: target
-  });
-  let out = (r && r.translated_text || '').trim();
-  if (!out || out.startsWith('ERROR')) throw new Error('empty piece');
-  out = restoreTerms(out, guarded.terms);
-  return fixAfterTranslate(out, target);
-}
-
-/* 拼接译句：缺句尾标点就补一个，中文用中文标点、英文用英文标点 */
-function joinSentences(list, target) {
-  const zh = target === 'zh';
-  const fixed = list.map((p, i) => {
-    let t = String(p).trim();
-    if (!t) return '';
-    // 统一半角标点为全角（中文）
-    if (zh) t = t.replace(/!$/, '！').replace(/\?$/, '？').replace(/\.$/, '。');
-    const last = t.slice(-1);
-    const hasEnd = zh ? /[。！？；…）】」]/.test(last)
-                      : /[.!?;…)\]"']/.test(last);
-    // 最后一句也补，句子读完要有收束
-    if (!hasEnd) t += zh ? '。' : '.';
-    return t;
-  }).filter(Boolean);
-  return zh ? fixed.join('') : fixed.join(' ');
-}
-
 /* 翻译一条评价。结果写回 reviews 表缓存，同一条只调一次模型。 */
 async function translateReview(env, id, target) {
   const row = await env.DB.prepare(
@@ -258,16 +196,28 @@ async function translateReview(env, id, target) {
   // 原文已经是目标语言，直接回原文，不浪费额度
   if (source === target) return { text: row.text, same: true };
 
-  const pieces = splitSentences(row.text, source);
+  const tgt = target === 'zh' ? '中文' : 'English';
   let out;
   try {
-    // 逐句翻，句子之间互不影响，不会整段丢内容
-    const done = await Promise.all(
-      pieces.map(p => translateOne(env, p, source, target))
-    );
-    // 模型逐句翻译时不保证带句尾标点，直接拼会糊成一句
-    //（实测三句拼出「很棒!真的有用会推荐的」）。补齐后再接。
-    out = joinSentences(done, target);
+    const r = await env.AI.run(TRANSLATE_MODEL, {
+      messages: [
+        { role: 'system', content:
+          'You are a professional translator for software product feedback. ' +
+          `Translate the user's text into ${tgt}. ` +
+          'Keep technical terms, product names and identifiers (like pm-prd, SKILL.md) exactly as written. ' +
+          'Translate every sentence — never omit, merge or summarize. ' +
+          'Reply with the translation only: no quotes, no notes, no original text.' },
+        { role: 'user', content: row.text }
+      ],
+      max_tokens: 600
+    });
+    out = cleanOutput(r && r.response, row.text);
+    out = fixAfterTranslate(out, target);
+    // 指令模型偶尔不翻译而是自由发挥——实测「One sentence only」被扩写成
+    // 一整段关于 PM-PRD 的话。译文长度远超原文即判为幻觉，回退原文。
+    if (isHallucination(out, row.text, target)) {
+      return { text: row.text, same: true, fallback: true };
+    }
   } catch (e) {
     return { error: 'translate failed', status: 503 };
   }
@@ -383,5 +333,4 @@ export default {
 };
 
 /* 仅供测试引用；Workers 运行时只认 default export，额外具名导出无副作用 */
-export { splitSentences, protectTerms, restoreTerms, sanitizeName,
-         fixAfterTranslate, guessLang, joinSentences };
+export { sanitizeName, fixAfterTranslate, guessLang, cleanOutput, isHallucination };
