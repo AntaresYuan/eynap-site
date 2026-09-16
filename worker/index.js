@@ -40,6 +40,7 @@ const clampRate = v =>
 async function listReviews(env) {
   const { results } = await env.DB.prepare(
     `SELECT id, author, text, feature, effect, stability, version,
+            trans_zh, trans_en,
             substr(created_at, 1, 10) AS date
        FROM reviews
       WHERE visible = 1
@@ -52,7 +53,12 @@ async function listReviews(env) {
   ).first();
 
   return {
-    reviews: (results || []).map(r => ({ ...r, owner: r.author === env.OWNER })),
+    // 带上原文语种与已缓存的译文：前端据此自动显示，命中缓存就不必再请求
+    reviews: (results || []).map(r => ({
+      ...r,
+      owner: r.author === env.OWNER,
+      lang: guessLang(r.text)
+    })),
     downloads: row?.value ?? 0
   };
 }
