@@ -177,6 +177,8 @@
 
   /* ---------- 粘性 tab ---------- */
   .tabs{display:flex;gap:1px;flex:1 1 auto;min-width:0;justify-content:center}
+  /* 折叠态下，菜单按钮后面留一个弹性空隙，把语言与下载推到最右 */
+  .nav .navmenu-btn{margin-right:auto}
   /* 窄屏菜单按钮：默认藏着，标签行放不下时才出现 */
   .navmenu-btn{display:none;align-items:center;gap:8px;flex:0 0 auto;cursor:pointer;
     background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
@@ -186,10 +188,11 @@
   .navmenu-btn svg{width:16px;height:16px;flex:none}
   .navmenu-btn span{white-space:nowrap}
   /* 下拉面板 */
-  .navsheet{display:none;position:fixed;top:78px;left:50%;transform:translateX(-50%) translateY(-6px);
-    z-index:79;width:min(340px,calc(100vw - 28px));padding:8px;border-radius:var(--r-l);
-    opacity:0;pointer-events:none;transition:.18s cubic-bezier(.2,.8,.3,1)}
-  .navsheet.open{display:block;opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+  .navsheet{display:none;position:fixed;top:var(--ns-top,78px);left:var(--ns-left,20px);
+    transform:translateY(-6px);z-index:79;width:min(260px,calc(100vw - 32px));
+    padding:7px;border-radius:14px;opacity:0;pointer-events:none;
+    transition:opacity .16s ease, transform .16s cubic-bezier(.2,.8,.3,1)}
+  .navsheet.open{display:block;opacity:1;pointer-events:auto;transform:translateY(0)}
   .ns-item{display:block;width:100%;text-align:left;background:none;border:none;cursor:pointer;
     color:var(--ink-2);font-size:14.5px;font-weight:500;padding:11px 15px;
     border-radius:11px;transition:.14s}
@@ -658,6 +661,7 @@ const I18N={
     toastNeedText:"先写点内容再提交", toastSaved:"反馈已提交，谢谢", toastFail:"提交失败",
     toastRate:"提交太频繁了，过几分钟再试", toastDup:"这条内容已经有人提过了",
     toastReadonly:"评价服务还没接上，先去 GitHub 提 Issue 吧",
+    rvGithub:"去 GitHub 提反馈", rvPlaceholderRO:"评价服务还在接，点右边按钮去 GitHub 提 Issue——那边我一定看得到。",
     offline:"离线模式：可浏览，下载与反馈需运行 node server.mjs"
   },
   en:{
@@ -702,6 +706,7 @@ const I18N={
     toastNeedText:"Write something first", toastSaved:"Thanks, feedback submitted", toastFail:"Submission failed",
     toastRate:"Too many submissions, try again in a few minutes", toastDup:"Someone already posted this",
     toastReadonly:"Feedback service is not wired up yet — open an issue on GitHub instead",
+    rvGithub:"Open an issue", rvPlaceholderRO:"The feedback service is not wired up yet. Use the button on the right to open a GitHub issue — I read every one.",
     offline:"Offline mode: browsing works; download and feedback need node server.mjs"
   }
 };
@@ -1057,6 +1062,12 @@ const I18N={
    留空：使用同源的本地 server.mjs（开发用）
    填 Workers 地址：公网部署，例如 https://eynap-api.<你的账号>.workers.dev */
 const API_BASE = '';
+/* 下载走 GitHub Release：自带官方下载统计，零部署。
+   评价服务另需 worker/（见 worker/README.md）。 */
+const GH_REPO = 'AntaresYuan/eynap';
+const GH_TAG  = 'v2.0.0';
+const GH_ASSET= 'eynap-2.0.0.zip';
+const RELEASE_URL = `https://github.com/${GH_REPO}/releases/download/${GH_TAG}/${GH_ASSET}`;
 let S=null, myRate={feature:5,effect:5,stability:5};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1084,6 +1095,19 @@ function setLang(l){
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');
   clearTimeout(window.__tt);window.__tt=setTimeout(()=>t.classList.remove('show'),2400);}
 
+/* 从 GitHub Release 读真实下载量。失败就保持内联值，不显示假数字。 */
+async function fetchDownloads(){
+  try{
+    const r = await fetch(`https://api.github.com/repos/${GH_REPO}/releases/latest`,
+      {headers:{'Accept':'application/vnd.github+json'}});
+    if(!r.ok) return;
+    const j = await r.json();
+    const total = (j.assets||[]).reduce((a,x)=>a+(x.download_count||0),0);
+    S.downloads = total;
+    const e = $('#hs-dl'); if(e) e.textContent = total;
+  }catch(e){ /* 限流或离线时静默跳过 */ }
+}
+
 async function load(){
   if (API_BASE) {
     // 公网模式：页面是静态的，只有评价和下载数走远端
@@ -1108,6 +1132,7 @@ async function load(){
   document.documentElement.lang = LANG==='zh' ? 'zh-CN' : 'en';
   render();
   if(window.__OFFLINE__) toast(T().offline);
+  fetchDownloads();
 }
 
 /* ---------- 全量渲染（切语言时整页重画） ---------- */
@@ -1277,7 +1302,15 @@ function renderReviews(){
     $$(`[data-k="${k}"]`).forEach(s=>s.onclick=()=>{myRate[k]=+s.dataset.v;
       $$(`[data-k="${k}"]`).forEach(x=>x.classList.toggle('on',+x.dataset.v<=myRate[k]));});
   });
-  $('#rv-send').onclick=submitReview;
+  if(window.__READONLY__ && !API_BASE){
+    const b=$('#rv-send');
+    b.textContent = t.rvGithub;
+    b.onclick = ()=>window.open(`https://github.com/${GH_REPO}/issues/new/choose`,'_blank','noopener');
+    const box=$('#rv-text');
+    if(box) box.placeholder = t.rvPlaceholderRO;
+  } else {
+    $('#rv-send').onclick=submitReview;
+  }
 }
 
 /* ---------- 版权与鸣谢 ---------- */
@@ -1369,9 +1402,20 @@ function go(p){
 }
 $$('.tab').forEach(t=>t.onclick=()=>go(t.dataset.p));
 $$('.ns-item').forEach(t=>t.onclick=()=>go(t.dataset.p));
+function placeNavSheet(){
+  const b=$('#menuBtn'), s=$('#navsheet');
+  if(!b||!s) return;
+  const r=b.getBoundingClientRect();
+  s.style.setProperty('--ns-top', (r.bottom + 8) + 'px');
+  // 与按钮左边缘对齐；靠近右边界时改为右对齐，避免溢出屏幕
+  const w = Math.min(260, innerWidth - 32);
+  const left = Math.min(r.left, innerWidth - w - 14);
+  s.style.setProperty('--ns-left', Math.max(14, left) + 'px');
+}
 $('#menuBtn').onclick=e=>{
   e.stopPropagation();
   const s=$('#navsheet'), open=!s.classList.contains('open');
+  if(open) placeNavSheet();
   s.classList.toggle('open', open);
   $('#menuBtn').setAttribute('aria-expanded', String(open));
 };
@@ -1388,23 +1432,21 @@ document.addEventListener('click',e=>{
 function openInstall(){go('install');}
 function copyText(t){navigator.clipboard.writeText(t).then(()=>toast(T().toastCopied+t.slice(0,40))).catch(()=>{});}
 function downloadZip(){
-  if(window.__READONLY__ && !API_BASE){
-    window.location.href='download/'+S.plugin.downloadFile;
-    toast(T().toastDl); return;
+  // 统一走 Release 直链：GitHub 侧自动计数
+  if(window.__READONLY__ || API_BASE){
+    window.location.href = RELEASE_URL;
+    toast(T().toastDl);
+    // 计数有缓存延迟，几秒后回读一次
+    setTimeout(fetchDownloads, 4000);
+    return;
   }
   if(!API_BASE && window.__OFFLINE__){toast(T().toastOffDl);return;}
-  if(API_BASE){
-    window.location.href='download/'+S.plugin.downloadFile;
-    fetch(API_BASE+'/api/download',{method:'POST'})
-      .then(r=>r.json()).then(d=>{S.downloads=d.downloads;
-        const e=$('#hs-dl'); if(e) e.textContent=d.downloads;}).catch(()=>{});
-    toast(T().toastDl); return;
-  }
   window.location.href='/api/download';
   setTimeout(()=>{toast(T().toastDl);fetch('/api/store').then(r=>r.json()).then(s=>{
     S=s;const e=$('#hs-dl'); if(e) e.textContent=s.downloads;});},600);}
 addEventListener('resize', ()=>{clearTimeout(window.__rz);
   window.__rz=setTimeout(closeNavSheet,150);});
+addEventListener('scroll', closeNavSheet, {passive:true});
 load();
 </script>
 </body>
