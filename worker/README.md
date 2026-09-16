@@ -1,7 +1,8 @@
 # Eynap 评价服务
 
-Cloudflare Workers + D1，给站点提供真实的评价与下载计数。免费额度每天 10 万行写入、
-500 万行读取、5 GB 存储，这个量级远用不完。
+Cloudflare Workers + D1 + Workers AI，给站点提供真实的评价、下载计数和评价翻译。
+D1 免费额度每天 10 万行写入、500 万行读取、5 GB 存储；
+Workers AI 免费额度每天 10000 neurons，这个量级远用不完。
 
 ## 部署
 
@@ -35,12 +36,35 @@ const API_BASE = 'https://eynap-api.xxx.workers.dev';
 | GET | `/api/reviews` | 返回 `{ reviews: [...], downloads: n }` |
 | POST | `/api/reviews` | 提交一条，返回同上 |
 | POST | `/api/download` | 下载计数 +1 |
+| POST | `/api/translate` | 翻译某条评价，返回 `{ id, target, text, cached }` |
 
 提交体：
 
 ```json
 { "author": "可留空", "text": "必填", "feature": 5, "effect": 4, "stability": 5, "version": "2.0.0" }
 ```
+
+## 评价翻译
+
+用 Workers AI 的 `@cf/meta/m2m100-1.2b` 做中英互译，不接外部翻译服务。
+
+请求体只接受库里已有的评价 id，不接受任意文本——否则这个接口会变成别人的免费翻译 API：
+
+```json
+{ "id": 12, "target": "en" }
+```
+
+三层省额度：
+
+1. 前端只在评价语种与当前界面不同时才显示翻译按钮，同语种不给入口
+2. 后端发现原文已是目标语言就直接回原文，不调模型
+3. 译文写回 `reviews.trans_zh` / `trans_en`，同一条只翻一次，之后所有人读缓存
+
+按每条评价中英各翻一次估算，10000 neurons/天 够翻几百条新评价，实际远用不到——
+评价是累积的，翻过就不再花额度。
+
+额度耗尽时模型返回 429，接口转成 503，前端显示「翻译失败，稍后再试」并恢复按钮，
+不影响评价本身的浏览和提交。
 
 ## 反垃圾
 
@@ -64,7 +88,7 @@ wrangler d1 execute eynap --remote --file=seed.sql
 ## 本地测试
 
 ```bash
-node test.mjs               # 用 node:sqlite 模拟 D1，17 项逻辑测试
+node test.mjs               # 用 node:sqlite 模拟 D1 与 AI，28 项逻辑测试
 ```
 
 不需要 Cloudflare 账号，也不联网。

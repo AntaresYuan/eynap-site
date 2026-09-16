@@ -409,6 +409,15 @@
   .review .rdate{color:var(--ink-3);font-size:12.5px;margin-left:auto}
   .review .rstars{color:#ffb020;letter-spacing:1px;font-size:13px}
   .review p{color:var(--ink-2);font-size:14px;line-height:1.66}
+  /* 译文：左侧竖线 + 略降透明度，一眼能看出不是原话 */
+  .review p.translated{
+    padding-left:11px;border-left:2px solid rgba(120,160,255,.35);
+    color:var(--ink-3);font-style:normal}
+  .tr-btn{margin-top:9px;padding:0;border:0;background:none;cursor:pointer;
+    font-size:12.5px;color:var(--ink-3);letter-spacing:.01em;
+    transition:color .15s ease}
+  .tr-btn:hover{color:var(--ink-1)}
+  .tr-btn:disabled{opacity:.5;cursor:default}
   .empty{background:var(--panel);border:1px dashed var(--line);border-radius:var(--r-m);
     padding:36px 24px;text-align:center;color:var(--ink-3);font-size:14px}
 
@@ -648,7 +657,8 @@ const I18N={
     evNote:"先定目的再设计测法，这是 <code>pm-research</code> 里写的规矩，这张表按同样的规矩对自己用了一遍。没跑就是没跑，不摆一个凑出来的分数。",
     cur:"当前", rvCount:"条反馈", rvF:"功能完善度", rvE:"效果质量", rvS:"运行稳定性",
     rvName:"你的名字（留空显示为匿名）", rvText:"用下来哪里好用、哪里卡住了？具体场景比形容词有用。",
-    rvSend:"提交反馈", rvAll:"全部反馈", rvEmpty:"还没有反馈。你是第一个用的人的话，上面直接写。",
+    rvSend:"提交反馈", rvAll:"全部反馈",
+    trShow:"翻译", trHide:"看原文", trLoading:"翻译中…", trFail:"翻译失败，稍后再试", trNote:"机器翻译", rvEmpty:"还没有反馈。你是第一个用的人的话，上面直接写。",
     author:"作者", updated:"最近更新", ownerTag:"作者",
     creditsTitle:"这套东西从哪来", licenseTitle:"许可证", thanksTitle:"鸣谢",
     contribTitle:"想一起改", viewRepo:"查看原始仓库", viewLicense:"查看许可证全文",
@@ -694,7 +704,8 @@ const I18N={
     cur:"current", rvCount:"pieces of feedback", rvF:"Features", rvE:"Output quality", rvS:"Stability",
     rvName:"Your name (leave blank to post anonymously)",
     rvText:"What worked, where did you get stuck? A concrete situation beats an adjective.",
-    rvSend:"Submit", rvAll:"All feedback", rvEmpty:"No feedback yet. If you are the first to use it, write it above.",
+    rvSend:"Submit", rvAll:"All feedback",
+    trShow:"Translate", trHide:"Show original", trLoading:"Translating…", trFail:"Translation failed", trNote:"Machine translation", rvEmpty:"No feedback yet. If you are the first to use it, write it above.",
     author:"Author", updated:"Last updated", ownerTag:"author",
     creditsTitle:"Where this came from", licenseTitle:"License", thanksTitle:"Acknowledgements",
     contribTitle:"Want to contribute", viewRepo:"Original repository", viewLicense:"Full license text",
@@ -1130,6 +1141,57 @@ function setLang(l){
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');
   clearTimeout(window.__tt);window.__tt=setTimeout(()=>t.classList.remove('show'),2400);}
 
+/* 前端判断评价语种，与 worker 保持同一规则 */
+function guessTextLang(text){
+  const cjk=(text.match(/[\u4e00-\u9fff]/g)||[]).length;
+  const latin=(text.match(/[A-Za-z]/g)||[]).length;
+  if(cjk===0) return 'en';
+  return cjk*4 > latin ? 'zh' : 'en';
+}
+
+/* 展开 / 收起译文。译文取回后存在 DOM 上，重复切换不再请求。 */
+async function toggleTranslation(btn){
+  const card = btn.closest('.review');
+  const p    = card.querySelector('.rtext');
+  const t    = T();
+
+  // 已翻过：纯本地切换，不再请求
+  if(card.dataset.trText){
+    const nowTranslated = card.dataset.trOn === '1';
+    const next = !nowTranslated;                    // 目标状态
+    p.textContent = next ? card.dataset.trText : card.dataset.origText;
+    p.classList.toggle('translated', next);
+    card.dataset.trOn = next ? '1' : '0';
+    btn.textContent = next ? t.trHide : t.trShow;
+    return;
+  }
+
+  // 首次翻译前先固化原文，避免后续被覆盖
+  card.dataset.origText = p.textContent;
+  btn.disabled = true;
+  btn.textContent = t.trLoading;
+  try{
+    const r = await fetch(API_BASE+'/api/translate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id: Number(btn.dataset.tr), target: LANG })
+    });
+    if(!r.ok) throw new Error(String(r.status));
+    const d = await r.json();
+    if(!d.text) throw new Error('empty');
+
+    card.dataset.trText   = d.text;
+    card.dataset.trOn     = '1';
+    p.textContent = d.text;
+    p.classList.add('translated');
+    btn.textContent = t.trHide;
+  }catch(e){
+    btn.textContent = t.trFail;
+    setTimeout(()=>{ btn.textContent = t.trShow; }, 2200);
+  }finally{
+    btn.disabled = false;
+  }
+}
+
 /* 从 GitHub Release 读真实下载量。失败就保持内联值，不显示假数字。 */
 async function fetchDownloads(){
   try{
@@ -1327,17 +1389,24 @@ function renderReviews(){
       </div>
     </div>
     <div class="rlist-h">${t.rvAll}</div>
-    <div id="review-list">${rs.length?rs.map(r=>`
-      <div class="review"><div class="rh">
+    <div id="review-list">${rs.length?rs.map(r=>{
+      // 只在评价语种与当前界面不同时才给翻译入口
+      const canTr = r.id != null && API_BASE && guessTextLang(r.text) !== LANG;
+      return `
+      <div class="review" data-rid="${r.id ?? ''}"><div class="rh">
         <div class="av"></div>
         <span class="ra">${esc(r.author)}</span>${r.owner?`<span class="owner-tag">${t.ownerTag}</span>`:''}
         <span class="rstars">${stars((r.feature+r.effect+r.stability)/3)}</span>
-        <span class="rdate">${r.date}</span></div><p>${esc(r.text)}</p></div>`).join('')
+        <span class="rdate">${r.date}</span></div>
+        <p class="rtext">${esc(r.text)}</p>
+        ${canTr?`<button class="tr-btn" data-tr="${r.id}">${t.trShow}</button>`:''}
+      </div>`;}).join('')
       :`<div class="empty">${t.rvEmpty}</div>`}</div>`;
   ['feature','effect','stability'].forEach(k=>{
     $$(`[data-k="${k}"]`).forEach(s=>s.onclick=()=>{myRate[k]=+s.dataset.v;
       $$(`[data-k="${k}"]`).forEach(x=>x.classList.toggle('on',+x.dataset.v<=myRate[k]));});
   });
+  $$('.tr-btn').forEach(b=>b.onclick=()=>toggleTranslation(b));
   if(window.__READONLY__ && !API_BASE){
     const b=$('#rv-send');
     b.textContent = t.rvGithub;

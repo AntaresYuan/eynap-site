@@ -2,6 +2,10 @@ name = "eynap-api"
 main = "index.js"
 compatibility_date = "2026-09-16"
 
+# 评价翻译用：@cf/meta/m2m100-1.2b，免费额度 10000 neurons/天
+[ai]
+binding = "AI"
+
 # 部署前把 database_id 换成 `wrangler d1 create eynap` 返回的真实 ID
 [[d1_databases]]
 binding = "DB"

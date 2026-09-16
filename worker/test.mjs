@@ -8,6 +8,7 @@ import worker from './index.js';
 
 const db = new DatabaseSync(':memory:');
 db.exec(readFileSync(new URL('./migrations/0001_init.sql', import.meta.url), 'utf8'));
+db.exec(readFileSync(new URL('./migrations/0002_translation_cache.sql', import.meta.url), 'utf8'));
 
 // 最小 D1 兼容层
 const D1 = {
@@ -23,7 +24,18 @@ const D1 = {
   }
 };
 
-const env = { DB: D1, OWNER: 'yuanchenjie.antares', SALT: 'test', ALLOW_ORIGIN: '*' };
+// 模拟 Workers AI：记录调用次数，用来验证缓存是否真的生效
+let aiCalls = 0;
+const AI = {
+  async run(model, input) {
+    aiCalls++;
+    if (model !== '@cf/meta/m2m100-1.2b') throw new Error('unexpected model: ' + model);
+    if (!input.text) throw new Error('empty text');
+    return { translated_text: `[${input.source_lang}->${input.target_lang}] ` + input.text };
+  }
+};
+
+const env = { DB: D1, AI, OWNER: 'yuanchenjie.antares', SALT: 'test', ALLOW_ORIGIN: '*' };
 
 const call = (method, path, body, ip = '1.2.3.4') =>
   worker.fetch(new Request('https://x' + path, {
@@ -129,6 +141,86 @@ ok(/^\d{4}-\d{2}-\d{2}$/.test(d.reviews[0].date), 'date 字段为 YYYY-MM-DD');
 // 17 未知路由
 r = await call('GET', '/nope');
 ok(r.status === 404, '未知路由返回 404');
+
+// ---- 翻译 ----
+console.log('\n翻译：');
+
+// 准备两条不同语种的评价
+await call('POST', '/api/reviews',
+  { author:'zhuser', text:'这个技能拆分得很清楚，单点需求不用跑整条流水线。',
+    feature:5, effect:5, stability:4 }, '9.9.9.1');
+await call('POST', '/api/reviews',
+  { author:'enuser', text:'The orchestrator routing is clean and easy to follow.',
+    feature:4, effect:4, stability:5 }, '9.9.9.2');
+
+r = await call('GET', '/api/reviews');
+d = await r.json();
+const zhRow = d.reviews.find(x => x.author === 'zhuser');
+const enRow = d.reviews.find(x => x.author === 'enuser');
+
+// 18 中译英
+aiCalls = 0;
+r = await call('POST', '/api/translate', { id: zhRow.id, target: 'en' });
+d = await r.json();
+ok(r.status === 200 && d.text.startsWith('[zh->en]'), '中文评价能译成英文', JSON.stringify(d));
+
+// 19 语种识别方向正确
+ok(aiCalls === 1, '首次翻译调用了一次模型', '实际 ' + aiCalls);
+
+// 20 缓存生效
+aiCalls = 0;
+r = await call('POST', '/api/translate', { id: zhRow.id, target: 'en' });
+d = await r.json();
+ok(d.cached === true && aiCalls === 0, '第二次读缓存，不再调模型', 'aiCalls=' + aiCalls);
+
+// 21 英译中
+r = await call('POST', '/api/translate', { id: enRow.id, target: 'zh' });
+d = await r.json();
+ok(d.text.startsWith('[en->zh]'), '英文评价能译成中文', JSON.stringify(d));
+
+// 22 原文即目标语言时不调模型
+aiCalls = 0;
+r = await call('POST', '/api/translate', { id: zhRow.id, target: 'zh' });
+d = await r.json();
+ok(aiCalls === 0 && d.text === zhRow.text, '目标语言与原文一致时直接回原文，不耗额度');
+
+// 23 不存在的 id
+r = await call('POST', '/api/translate', { id: 99999, target: 'en' });
+ok(r.status === 404, '不存在的评价返回 404');
+
+// 24 缺 id
+r = await call('POST', '/api/translate', { target: 'en' });
+ok(r.status === 400, '缺少 id 返回 400');
+
+// 25 不接受任意文本（防止被当免费翻译 API）
+r = await call('POST', '/api/translate', { text: 'translate me please', target: 'zh' });
+ok(r.status === 400, '只认 id、不认任意文本');
+
+// 26 target 非法值归一到 en
+r = await call('POST', '/api/translate', { id: zhRow.id, target: 'ja' });
+d = await r.json();
+ok(d.target === 'en', '非法 target 归一为 en');
+
+// 27 模型抛错时返回 503，且不写脏数据
+await call('POST', '/api/reviews',
+  { author:'zhuser2', text:'再来一条中文评价，用来测模型失败的情况。',
+    feature:3, effect:3, stability:3 }, '9.9.9.3');
+r = await call('GET', '/api/reviews');
+d = await r.json();
+const freshZh = d.reviews.find(x => x.author === 'zhuser2');
+
+const brokenEnv = { ...env, AI: { async run(){ throw new Error('boom'); } } };
+r = await worker.fetch(new Request('https://x/api/translate', {
+  method:'POST', headers:{'Content-Type':'application/json'},
+  body: JSON.stringify({ id: freshZh.id, target: 'en' })
+}), brokenEnv);
+ok(r.status === 503, '模型失败返回 503 而不是崩溃', '实际 ' + r.status);
+
+// 28 失败后没有写入半成品译文，重试仍能正常翻译
+r = await call('POST', '/api/translate', { id: freshZh.id, target: 'en' });
+d = await r.json();
+ok(r.status === 200 && d.text.startsWith('[zh->en]') && !d.cached,
+   '失败后未写脏数据，重试可正常翻译', JSON.stringify(d));
 
 console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`);
 process.exit(fail ? 1 : 0);

@@ -39,7 +39,7 @@ const clampRate = v =>
 
 async function listReviews(env) {
   const { results } = await env.DB.prepare(
-    `SELECT author, text, feature, effect, stability, version,
+    `SELECT id, author, text, feature, effect, stability, version,
             substr(created_at, 1, 10) AS date
        FROM reviews
       WHERE visible = 1
@@ -55,6 +55,47 @@ async function listReviews(env) {
     reviews: (results || []).map(r => ({ ...r, owner: r.author === env.OWNER })),
     downloads: row?.value ?? 0
   };
+}
+
+/* 判断文本主体语种：中日韩统一按中文处理（m2m100 的 zh 覆盖汉字） */
+function guessLang(text) {
+  const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+  const latin = (text.match(/[A-Za-z]/g) || []).length;
+  if (cjk === 0) return 'en';
+  // 汉字占比超过拉丁字母的 1/4 就算中文为主
+  return cjk * 4 > latin ? 'zh' : 'en';
+}
+
+/* 翻译一条评价。结果写回 reviews 表缓存，同一条只调一次模型。 */
+async function translateReview(env, id, target) {
+  const row = await env.DB.prepare(
+    `SELECT id, text, trans_zh, trans_en FROM reviews WHERE id = ? AND visible = 1`
+  ).bind(id).first();
+  if (!row) return { error: 'not found', status: 404 };
+
+  const col = target === 'zh' ? 'trans_zh' : 'trans_en';
+  if (row[col]) return { text: row[col], cached: true };
+
+  const source = guessLang(row.text);
+  // 原文已经是目标语言，直接回原文，不浪费额度
+  if (source === target) return { text: row.text, same: true };
+
+  let out;
+  try {
+    const r = await env.AI.run('@cf/meta/m2m100-1.2b', {
+      text: row.text,
+      source_lang: source,
+      target_lang: target
+    });
+    out = (r && r.translated_text || '').trim();
+  } catch (e) {
+    return { error: 'translate failed', status: 503 };
+  }
+  if (!out || out.startsWith('ERROR')) return { error: 'translate failed', status: 503 };
+
+  await env.DB.prepare(`UPDATE reviews SET ${col} = ? WHERE id = ?`)
+    .bind(out, id).run();
+  return { text: out };
 }
 
 export default {
@@ -87,6 +128,24 @@ export default {
         `SELECT value FROM counters WHERE key = 'downloads'`
       ).first();
       return json({ downloads: row?.value ?? 0 }, 200, origin);
+    }
+
+    // ---- 翻译评价 ----
+    // 只接受库里已有的评价 id，不接受任意文本，避免被当成免费翻译 API
+    if (url.pathname === '/api/translate' && req.method === 'POST') {
+      let body;
+      try { body = await req.json(); }
+      catch { return json({ error: 'bad json' }, 400, origin); }
+
+      const id = Number(body.id);
+      const target = body.target === 'zh' ? 'zh' : 'en';
+      if (!Number.isInteger(id) || id <= 0) {
+        return json({ error: 'id required' }, 400, origin);
+      }
+
+      const r = await translateReview(env, id, target);
+      if (r.error) return json({ error: r.error }, r.status || 500, origin);
+      return json({ id, target, text: r.text, cached: !!r.cached }, 200, origin);
     }
 
     // ---- 提交评价 ----
