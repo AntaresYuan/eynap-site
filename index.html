@@ -428,7 +428,7 @@
   .flogo .wm{font-size:22px}
   .fname{font-size:12.5px;color:var(--ink-3);letter-spacing:.02em;margin-bottom:9px}
   .foot p{font-size:13px;color:var(--ink-3)}.foot p b{color:var(--ink-2);font-weight:600}
-  .foot-links{margin-left:auto;display:flex;gap:24px;font-size:13.5px;color:var(--ink-2)}
+  .foot-links{margin-left:auto;display:flex;flex-wrap:wrap;gap:24px;font-size:13.5px;color:var(--ink-2)}
   .foot-links a{cursor:pointer;transition:.15s}.foot-links a:hover{color:#fff}
 
   .toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(16px);opacity:0;
@@ -458,8 +458,64 @@
   @media(max-width:480px){
     .navmenu-btn span{display:none}
     .navmenu-btn{padding:9px 12px}
-    .lang button{padding:5px 9px;font-size:11.5px}
     .nav{padding:8px 12px;gap:8px}
+  }
+
+  /* ---- 手机端 ---- */
+  @media(max-width:600px){
+    /* hero 两个按钮并排放不下，改上下排布并撑满 */
+    .hero-bar{display:flex;flex-direction:column;align-items:stretch;
+      width:100%;max-width:340px;margin-left:auto;margin-right:auto;
+      margin-top:32px;gap:8px}
+    .hero-bar .btn{width:100%;justify-content:center}
+    .btn-lg{padding:14px 20px;font-size:15px}
+
+    .hero{padding:112px 18px 0}
+    .hero h1{font-size:clamp(32px,8.6vw,44px);letter-spacing:-.03em}
+    .hero-sub{margin-top:20px;font-size:14.5px;line-height:1.62}
+    .wrap{padding:0 18px 60px}
+
+    /* 触控区：语言切换和菜单按钮按 44px 可点标准放大 */
+    .lang{padding:3px}
+    .lang button{padding:9px 13px;font-size:12.5px;min-height:38px}
+    .navmenu-btn{min-height:40px}
+    .nav .btn{min-height:40px}
+    .tr-btn{padding:6px 0;min-height:32px}
+
+    /* 下拉面板在小屏改为贴合左右边距 */
+    .navsheet{width:calc(100vw - 24px)}
+    .navsheet .ns-item{padding:13px 14px;font-size:14.5px}
+
+    .review{padding:15px 15px 16px}
+    .rh{flex-wrap:wrap;row-gap:5px}
+    .rdate{margin-left:0}
+
+    /* 页脚链接一行排不下，换行并左对齐 */
+    .foot-links{margin-left:0;gap:14px 18px;font-size:13px}
+    .foot-in{gap:18px}
+  }
+
+  /* 极窄屏：iPhone SE 一档 */
+  @media(max-width:380px){
+    .hero h1{font-size:30px}
+    .hero-stats{gap:0}
+    .hs b{font-size:23px}
+    .hs span{font-size:11.5px}
+    .nav{padding:7px 10px;gap:6px}
+    .lang button{padding:8px 10px;font-size:12px}
+    .brand{font-size:16px}
+  }
+
+  /* ---- 平板 ---- */
+  @media(min-width:601px) and (max-width:1024px){
+    .hero{padding:126px 26px 0}
+    .wrap{padding:0 26px 68px}
+    /* 指针不精确时（触屏平板）同样放大点击区 */
+  }
+  @media(hover:none) and (pointer:coarse){
+    .tab{min-height:40px;display:inline-flex;align-items:center}
+    .lang button{min-height:36px}
+    .tr-btn{min-height:32px}
   }
 
   @media(max-width:880px){
@@ -1512,10 +1568,14 @@ function placeNavSheet(){
   if(!b||!s) return;
   const r=b.getBoundingClientRect();
   s.style.setProperty('--ns-top', (r.bottom + 8) + 'px');
-  // 与按钮左边缘对齐；靠近右边界时改为右对齐，避免溢出屏幕
-  const w = Math.min(260, innerWidth - 32);
-  const left = Math.min(r.left, innerWidth - w - 14);
-  s.style.setProperty('--ns-left', Math.max(14, left) + 'px');
+  // 宽度由 CSS 决定（手机端会变宽），这里读实际值，不要写死
+  const prev = s.style.visibility;
+  s.style.visibility='hidden'; s.style.display='block';
+  const w = s.getBoundingClientRect().width;
+  s.style.display=''; s.style.visibility=prev;
+  // 与按钮左缘对齐；贴近右边界时回收，保证两侧都留边距
+  const left = Math.min(r.left, innerWidth - w - 12);
+  s.style.setProperty('--ns-left', Math.max(12, left) + 'px');
 }
 $('#menuBtn').onclick=e=>{
   e.stopPropagation();
