@@ -66,6 +66,62 @@ function guessLang(text) {
   return cjk * 4 > latin ? 'zh' : 'en';
 }
 
+/* 本项目的专有名词。m2m100 是通用模型，会把 orchestrator 译成「管弦乐队」，
+   技能名更是必然被拆开。翻译前替换成占位符，翻完还原。 */
+// 两类处理，分开做：
+// 1) 占位保护——只给带连字符的技能名，它们必被模型拆开。数量少，不影响句子完整度。
+const KEEP_TERMS = [
+  'pm-research','pm-value','pm-prd','pm-entity','pm-design','pm-orchestrator',
+  'SKILL.md','Eynap','eynap'
+];
+
+// 2) 译后修正——通用词翻译出来语义跑偏（orchestrator→管弦乐队），
+//    但占位保护会让 m2m100 丢句子，所以放它正常翻，翻完再纠回来。
+const FIX_AFTER = {
+  zh: [
+    [/管弦乐队|管弦乐团|交响乐团|乐团指挥/g, '编排者'],
+    [/舞台阶段|决定舞台/g, '决定阶段'],
+    [/路线到/g, '路由到'],
+    [/技能清洁分离/g, '技能职责分离'],
+    [/易于延伸/g, '易于扩展']
+  ],
+  en: [
+    [/orchestra conductor|the orchestra/gi, 'the orchestrator'],
+    [/flow line|assembly line/gi, 'pipeline']
+  ]
+};
+
+function fixAfterTranslate(text, target) {
+  let out = text;
+  (FIX_AFTER[target] || []).forEach(([re, to]) => { out = out.replace(re, to); });
+  return out;
+}
+
+function protectTerms(text) {
+  const found = [];
+  let out = text;
+  // 长词优先，避免 pm-prd 被 prd 抢先匹配
+  [...KEEP_TERMS].sort((a,b)=>b.length-a.length).forEach(term => {
+    const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
+    if (re.test(out)) {
+      // 用大写字母组合当占位符：控制字符会被模型吞掉，纯数字会被当成内容
+      const token = `XQZ${found.length}ZQX`;
+      out = out.replace(re, token);
+      found.push(term);
+    }
+  });
+  return { text: out, terms: found };
+}
+
+function restoreTerms(text, terms) {
+  let out = text;
+  terms.forEach((term, i) => {
+    // 模型可能改大小写或在中间插空格，宽松匹配
+    out = out.replace(new RegExp(`X\\s*Q\\s*Z\\s*${i}\\s*Z\\s*Q\\s*X`, 'gi'), term);
+  });
+  return out;
+}
+
 /* 翻译一条评价。结果写回 reviews 表缓存，同一条只调一次模型。 */
 async function translateReview(env, id, target) {
   const row = await env.DB.prepare(
@@ -80,14 +136,17 @@ async function translateReview(env, id, target) {
   // 原文已经是目标语言，直接回原文，不浪费额度
   if (source === target) return { text: row.text, same: true };
 
+  const guarded = protectTerms(row.text);
   let out;
   try {
     const r = await env.AI.run('@cf/meta/m2m100-1.2b', {
-      text: row.text,
+      text: guarded.text,
       source_lang: source,
       target_lang: target
     });
     out = (r && r.translated_text || '').trim();
+    out = restoreTerms(out, guarded.terms);
+    out = fixAfterTranslate(out, target);
   } catch (e) {
     return { error: 'translate failed', status: 503 };
   }

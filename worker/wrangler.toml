@@ -10,13 +10,13 @@ binding = "AI"
 [[d1_databases]]
 binding = "DB"
 database_name = "eynap"
-database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+database_id = "02502edc-add7-4396-a1d1-936d458d441d"
 
 [vars]
 # 作者名：与这个名字一致的评价会显示「作者」标签
 OWNER = "yuanchenjie.antares"
 # 允许访问的站点来源，正式部署后改成你的域名，例如 "https://eynap.pages.dev"
-ALLOW_ORIGIN = "*"
+ALLOW_ORIGIN = "https://antaresyuan.github.io"
 
 # SALT 用于 IP 散列，不要写在这里。用命令设置：
 #   wrangler secret put SALT
