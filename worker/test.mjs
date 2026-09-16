@@ -25,10 +25,14 @@ const D1 = {
 };
 
 // 模拟 Workers AI：记录调用次数，用来验证缓存是否真的生效
-let aiCalls = 0;
+let aiCalls = 0, nameCalls = 0, nameReply = 'Quiet Otter';
 const AI = {
   async run(model, input) {
     aiCalls++;
+    if (model === '@cf/meta/llama-3.2-1b-instruct') {
+      nameCalls++;
+      return { response: nameReply };      // 由用例控制返回，测各种畸形输出
+    }
     if (model !== '@cf/meta/m2m100-1.2b') throw new Error('unexpected model: ' + model);
     if (!input.text) throw new Error('empty text');
     return { translated_text: `[${input.source_lang}->${input.target_lang}] ` + input.text };
@@ -64,11 +68,12 @@ d = await r.json();
 ok(r.status === 200 && d.reviews[0].feature === 5 && d.reviews[0].effect === 4,
    '提交成功且三维评分正确', JSON.stringify(d).slice(0, 120));
 
-// 3 匿名
+// 3 留空署名 → 起花名（不再是写死的「匿名」）
 r = await call('POST', '/api/reviews',
   { author: '   ', text: '匿名试一条', feature: 3, effect: 3, stability: 3 }, '9.9.9.9');
 d = await r.json();
-ok(d.reviews[0].author === '匿名', '留空署名回退为「匿名」');
+ok(/^[A-Z][a-z]+ [A-Z][a-z]+$/.test(d.reviews[0].author),
+   '留空署名生成英文花名', d.reviews[0].author);
 
 // 4 作者标签
 r = await call('POST', '/api/reviews',
@@ -221,6 +226,62 @@ r = await call('POST', '/api/translate', { id: freshZh.id, target: 'en' });
 d = await r.json();
 ok(r.status === 200 && d.text.startsWith('[zh->en]') && !d.cached,
    '失败后未写脏数据，重试可正常翻译', JSON.stringify(d));
+
+// ---- 匿名花名 ----
+console.log('\n花名：');
+
+// 29 留空名字时调用模型起名
+nameReply = 'Quiet Otter'; nameCalls = 0;
+r = await call('POST', '/api/reviews',
+  { text:'挺好用的，省了不少来回。', feature:4, effect:4, stability:4 }, '7.7.7.1');
+d = await r.json();
+let newest = d.reviews[0];
+ok(newest.author === 'Quiet Otter' && nameCalls === 1,
+   '留空时用 AI 起花名', newest.author);
+
+// 30 不再出现写死的「匿名」
+ok(!d.reviews.some(x => x.author === '匿名'), '库里没有写死的「匿名」');
+
+// 31 填了名字就不调模型
+nameCalls = 0;
+r = await call('POST', '/api/reviews',
+  { author:'realname', text:'填了名字的一条反馈内容。', feature:4, effect:4, stability:4 }, '7.7.7.2');
+d = await r.json();
+ok(d.reviews[0].author === 'realname' && nameCalls === 0,
+   '填了名字就不起花名，也不调模型');
+
+// 32 模型返回带引号和句号 → 清洗
+nameReply = '"Swift Heron."';
+r = await call('POST', '/api/reviews',
+  { text:'第三条反馈，测清洗逻辑。', feature:3, effect:3, stability:3 }, '7.7.7.3');
+d = await r.json();
+ok(d.reviews[0].author === 'Swift Heron', '引号与句号被清掉', d.reviews[0].author);
+
+// 33 模型跑题（整句话）→ 回落词表
+nameReply = 'Sure! Here is a handle you might like for this user.';
+r = await call('POST', '/api/reviews',
+  { text:'第四条反馈，测跑题回落。', feature:3, effect:3, stability:3 }, '7.7.7.4');
+d = await r.json();
+ok(/^[A-Z][a-z]+ [A-Z][a-z]+$/.test(d.reviews[0].author),
+   '模型跑题时回落到词表', d.reviews[0].author);
+
+// 34 模型抛错 → 仍有名字，不落「匿名」，不影响提交
+const noAiEnv = { ...env, AI: { async run(){ throw new Error('down'); } } };
+r = await worker.fetch(new Request('https://x/api/reviews', {
+  method:'POST',
+  headers:{'Content-Type':'application/json','CF-Connecting-IP':'7.7.7.5'},
+  body: JSON.stringify({ text:'第五条，模型挂了也要能提交。', feature:3, effect:3, stability:3 })
+}), noAiEnv);
+d = await r.json();
+ok(r.status === 200 && /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(d.reviews[0].author),
+   '模型不可用时仍能提交且有花名', d.reviews[0].author);
+
+// 35 含数字或符号的返回被拒
+nameReply = 'Agent 007';
+r = await call('POST', '/api/reviews',
+  { text:'第六条，测数字过滤。', feature:3, effect:3, stability:3 }, '7.7.7.6');
+d = await r.json();
+ok(!/\d/.test(d.reviews[0].author), '带数字的返回被拒并回落', d.reviews[0].author);
 
 console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`);
 process.exit(fail ? 1 : 0);

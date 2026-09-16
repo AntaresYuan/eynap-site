@@ -122,6 +122,53 @@ function restoreTerms(text, terms) {
   return out;
 }
 
+/* 未填名字时用 AI 起个花名。
+   读评价内容来起，名字和人有点关系，比纯随机有意思。
+   模型不可用或返回不合规时回落到词表组合，绝不写死「匿名」。 */
+const NAME_ADJ = ['Quiet','Swift','Calm','Keen','Bright','Steady','Curious',
+                  'Patient','Sharp','Warm','Nimble','Candid'];
+const NAME_NOUN = ['Otter','Heron','Fox','Lark','Ibis','Marten','Finch',
+                   'Badger','Crane','Vole','Shrike','Tapir'];
+
+function fallbackName() {
+  const a = NAME_ADJ[Math.floor(Math.random() * NAME_ADJ.length)];
+  const n = NAME_NOUN[Math.floor(Math.random() * NAME_NOUN.length)];
+  return `${a} ${n}`;
+}
+
+/* 校验模型产出：两个词、纯字母、长度合理，挡住模型跑题或注入 */
+function sanitizeName(raw) {
+  if (!raw) return null;
+  let s = String(raw).trim()
+    .replace(/^["'`\s]+|["'`\s.。!?]+$/g, '')   // 去引号与尾标点
+    .split('\n')[0].trim();
+  if (!/^[A-Za-z]+(?: [A-Za-z]+)?$/.test(s)) return null;
+  if (s.length < 3 || s.length > 24) return null;
+  // 首字母大写
+  return s.split(' ').map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+async function makeHandle(env, text) {
+  if (!env.AI) return fallbackName();
+  try {
+    const r = await env.AI.run('@cf/meta/llama-3.2-1b-instruct', {
+      messages: [
+        { role: 'system', content:
+          'You invent short anonymous handles. Reply with exactly two English words: ' +
+          'an adjective and an animal noun, like "Quiet Otter". ' +
+          'No quotes, no punctuation, no explanation, no numbers.' },
+        { role: 'user', content:
+          'Someone left this product feedback. Invent a handle that loosely fits its tone:\n' +
+          String(text).slice(0, 200) }
+      ],
+      max_tokens: 12
+    });
+    return sanitizeName(r && (r.response || r.result)) || fallbackName();
+  } catch (e) {
+    return fallbackName();
+  }
+}
+
 /* 翻译一条评价。结果写回 reviews 表缓存，同一条只调一次模型。 */
 async function translateReview(env, id, target) {
   const row = await env.DB.prepare(
@@ -227,7 +274,9 @@ export default {
         return json({ error: 'ratings must be 1-5' }, 400, origin);
       }
 
-      const author = String(body.author ?? '').trim().slice(0, MAX_AUTHOR) || '匿名';
+      const given = String(body.author ?? '').trim().slice(0, MAX_AUTHOR);
+      // 留空则起花名，不再写死中文「匿名」——英文界面下那三个字很突兀
+      const author = given || await makeHandle(env, text);
       const ip = req.headers.get('CF-Connecting-IP') || '0.0.0.0';
       const ipHash = await sha256(ip + (env.SALT || 'eynap'));
 

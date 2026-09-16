@@ -403,7 +403,10 @@
   .rlist-h{font-size:15px;font-weight:650;margin:27px 0 12px}
   .review{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:20px 24px;margin-bottom:10px}
   .review .rh{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
-  .review .av{width:28px;height:28px;border-radius:50%;background:linear-gradient(140deg,#4080FF,#1a5fd0);flex:none}
+  .review .av{width:28px;height:28px;border-radius:50%;flex:none;
+    display:grid;place-items:center;font-size:11.5px;font-weight:600;
+    color:rgba(255,255,255,.92);letter-spacing:.02em;
+    background:linear-gradient(140deg,var(--av-a,#4080FF),var(--av-b,#1a5fd0))}
   .review .ra{font-weight:650;font-size:14px}
   .review .owner-tag{background:rgba(255,255,255,.08);color:var(--ink-2);font-size:11.5px;padding:1px 8px;border-radius:5px}
   .review .rdate{color:var(--ink-3);font-size:12.5px;margin-left:auto}
@@ -712,7 +715,7 @@ const I18N={
     evDesign:"评测设计", evH:["维度","要回答什么","怎么测","看哪个数"],
     evNote:"先定目的再设计测法，这是 <code>pm-research</code> 里写的规矩，这张表按同样的规矩对自己用了一遍。没跑就是没跑，不摆一个凑出来的分数。",
     cur:"当前", rvCount:"条反馈", rvF:"功能完善度", rvE:"效果质量", rvS:"运行稳定性",
-    rvName:"你的名字（留空显示为匿名）", rvText:"用下来哪里好用、哪里卡住了？具体场景比形容词有用。",
+    rvName:"你的名字（留空自动起个花名）", rvText:"用下来哪里好用、哪里卡住了？具体场景比形容词有用。",
     rvSend:"提交反馈", rvAll:"全部反馈",
     trShow:"翻译", trHide:"看原文", trLoading:"翻译中…", trFail:"翻译失败，稍后再试", trNote:"机器翻译", rvEmpty:"还没有反馈。你是第一个用的人的话，上面直接写。",
     author:"作者", updated:"最近更新", ownerTag:"作者",
@@ -758,7 +761,7 @@ const I18N={
     evDesign:"Evaluation design", evH:["Dimension","Question it answers","Method","Metric"],
     evNote:"Define the purpose before designing the test — that is the rule written into <code>pm-research</code>, and this table applies it to the kit itself. Not run means not run; no invented score.",
     cur:"current", rvCount:"pieces of feedback", rvF:"Features", rvE:"Output quality", rvS:"Stability",
-    rvName:"Your name (leave blank to post anonymously)",
+    rvName:"Your name (leave blank for a random handle)",
     rvText:"What worked, where did you get stuck? A concrete situation beats an adjective.",
     rvSend:"Submit", rvAll:"All feedback",
     trShow:"Translate", trHide:"Show original", trLoading:"Translating…", trFail:"Translation failed", trNote:"Machine translation", rvEmpty:"No feedback yet. If you are the first to use it, write it above.",
@@ -1197,6 +1200,21 @@ function setLang(l){
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');
   clearTimeout(window.__tt);window.__tt=setTimeout(()=>t.classList.remove('show'),2400);}
 
+/* 头像配色：按名字取色，同一个名字永远同一个颜色。
+   六组色相，都压在深色底上能看清的亮度区间。 */
+const AV_PAIRS = [
+  ['#4080FF','#1a5fd0'], ['#3fb6a8','#1c7f74'], ['#c07cf0','#7a3fb8'],
+  ['#e8935c','#b85f28'], ['#5fa8e0','#2b6ea8'], ['#7bc96f','#3f8f38']
+];
+function avatarFor(name){
+  const s = String(name || '?');
+  let hash = 0;
+  for(let i=0;i<s.length;i++) hash = (hash*31 + s.charCodeAt(i)) >>> 0;
+  const [a,b] = AV_PAIRS[hash % AV_PAIRS.length];
+  const ch = s.trim().charAt(0).toUpperCase() || '?';
+  return { a, b, ch: esc(ch) };
+}
+
 /* 前端判断评价语种，与 worker 保持同一规则 */
 function guessTextLang(text){
   const cjk=(text.match(/[\u4e00-\u9fff]/g)||[]).length;
@@ -1448,9 +1466,10 @@ function renderReviews(){
     <div id="review-list">${rs.length?rs.map(r=>{
       // 只在评价语种与当前界面不同时才给翻译入口
       const canTr = r.id != null && API_BASE && guessTextLang(r.text) !== LANG;
+      const av = avatarFor(r.author);
       return `
       <div class="review" data-rid="${r.id ?? ''}"><div class="rh">
-        <div class="av"></div>
+        <div class="av" style="--av-a:${av.a};--av-b:${av.b}">${av.ch}</div>
         <span class="ra">${esc(r.author)}</span>${r.owner?`<span class="owner-tag">${t.ownerTag}</span>`:''}
         <span class="rstars">${stars((r.feature+r.effect+r.stability)/3)}</span>
         <span class="rdate">${r.date}</span></div>
