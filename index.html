@@ -709,7 +709,7 @@ const I18N={
     flow:["调研","立项","PRD","实体","设计交付"],
     flowNote:"但没人要求你从头走。每个技能都能单独下单，缺上游时它自己会把必要信息问齐。",
     skillList:"技能清单", tagOrch:"编排者", tagNew:"新建", tagExt:"外部 · 未改",
-    insTitle:"先下载，再按你的宿主选一种装法", zipMeta:"45 个文件 · 100K · 纯 Markdown 与 shell，无二进制",
+    insTitle:"一条命令装好，不需要额外配置", zipMeta:"45 个文件 · 100K · 纯 Markdown 与 shell，无二进制",
     dlShort:"下载",
     insNote:"这套东西本体是 Markdown，不绑定任何一家宿主。只要你的 Agent 能读本地文件，最后一种装法就一定成立；前两种只是更省事。",
     qcOverview:"结果概览", qcWhen:"检查于", qcPassed:"必检项通过",
@@ -754,7 +754,7 @@ const I18N={
     flow:["Research","Framing","PRD","Entity","Handoff"],
     flowNote:"Nothing requires you to start at the beginning. Each skill can be called on its own and will ask for what it is missing.",
     skillList:"The skills", tagOrch:"orchestrator", tagNew:"new", tagExt:"external · unmodified",
-    insTitle:"Download first, then pick the method that matches your host",
+    insTitle:"One command, no extra configuration",
     zipMeta:"45 files · 100K · plain Markdown and shell, no binaries",
     dlShort:"Download",
     insNote:"This kit is just Markdown; it is not tied to any single host. As long as your agent can read local files, the last method always works — the first two are simply more convenient.",
@@ -1072,36 +1072,28 @@ const I18N={
   ],
   "install": [
     {
-      "host": "Claude Code / 支持 plugin 的宿主",
-      "cmd": "解压后放入 ~/.claude/plugins/，重启宿主即可 @ 调用",
-      "note": "识别 .claude-plugin/plugin.json",
-      "hostEn": "Claude Code / any plugin-aware host",
-      "cmdEn": "Unzip into ~/.claude/plugins/, restart the host, then call it with @",
-      "noteEn": "reads .claude-plugin/plugin.json"
+      "host": "一条命令装全部",
+      "cmd": "npx skills add AntaresYuan/eynap -y",
+      "note": "五个技能一次装好；自动识别你装了哪些 Agent 并放进各自目录，支持 70+ 宿主",
+      "hostEn": "One command, everything",
+      "cmdEn": "npx skills add AntaresYuan/eynap -y",
+      "noteEn": "installs all five skills; detects your agents and places them in the right directories, 70+ hosts supported"
     },
     {
-      "host": "Cursor",
-      "cmd": "解压后放入 .cursor/rules/ 或项目根目录，在 .cursorrules 里引用 skills/ai-pm/SKILL.md",
-      "note": "按 rules 方式加载",
-      "hostEn": "Cursor",
-      "cmdEn": "Unzip into .cursor/rules/ or the project root, then reference skills/ai-pm/SKILL.md from .cursorrules",
-      "noteEn": "loaded as rules"
+      "host": "装到全局",
+      "cmd": "npx skills add AntaresYuan/eynap -y -g",
+      "note": "所有项目可用；默认只装当前项目。之后用 npx skills update 更新",
+      "hostEn": "Install globally",
+      "cmdEn": "npx skills add AntaresYuan/eynap -y -g",
+      "noteEn": "available in every project; defaults to the current one. Update later with npx skills update"
     },
     {
-      "host": "任意支持读文件的 Agent",
-      "cmd": "解压到项目任意位置，在系统提示里写一行：需要产品工作时先读 skills/ai-pm/SKILL.md",
-      "note": "最低要求：Agent 能读本地文件",
-      "hostEn": "Any agent that can read local files",
-      "cmdEn": "Unzip anywhere in the project and add one line to the system prompt: for product work, read skills/ai-pm/SKILL.md first",
-      "noteEn": "minimum requirement: the agent can read local files"
-    },
-    {
-      "host": "手动 / 无 Agent",
-      "cmd": "当成写作模板用：按 skills/<原子>/SKILL.md 的结构自己填",
-      "note": "不依赖任何工具",
-      "hostEn": "By hand / no agent",
-      "cmdEn": "Use it as a writing template: follow the structure in skills/<skill>/SKILL.md and fill it in yourself",
-      "noteEn": "no tooling required"
+      "host": "不用 CLI",
+      "cmd": "git clone https://github.com/AntaresYuan/eynap.git ~/.claude/plugins/eynap",
+      "note": "手动放到宿主目录；也可从 Releases 下 zip 包",
+      "hostEn": "Without the CLI",
+      "cmdEn": "git clone https://github.com/AntaresYuan/eynap.git ~/.claude/plugins/eynap",
+      "noteEn": "place it manually, or grab the zip from Releases"
     }
   ],
   "credits": {
