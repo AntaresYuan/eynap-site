@@ -167,6 +167,21 @@
   .hero-sub{margin-top:26px;max-width:640px;margin-left:auto;margin-right:auto;
     color:var(--ink-2);font-size:17.5px;line-height:1.72}
   .hero-bar{margin-top:40px;display:inline-flex;align-items:center;gap:10px;padding:10px;border-radius:var(--r-l)}
+  /* 首屏安装命令：一眼能抄走 */
+  .hero-cmd{margin-top:30px;display:flex;flex-direction:column;align-items:center;gap:9px}
+  .hc-lead{font-size:13px;color:var(--ink-3);letter-spacing:.01em}
+  .hc-box{display:inline-flex;align-items:center;gap:12px;
+    padding:11px 14px 11px 16px;border-radius:12px;cursor:pointer;
+    transition:border-color .16s ease, transform .16s ease}
+  .hc-box:hover{transform:translateY(-1px)}
+  .hc-box code{font-family:var(--mono);font-size:14px;color:var(--ink-1);
+    letter-spacing:-.005em;white-space:nowrap}
+  .hc-cpy{display:grid;place-items:center;width:26px;height:26px;flex:none;
+    border-radius:7px;color:var(--ink-3);transition:.15s ease}
+  .hc-cpy svg{width:14px;height:14px}
+  .hc-box:hover .hc-cpy{color:var(--ink-1);background:rgba(255,255,255,.07)}
+  .hc-note{font-size:12.5px;color:var(--ink-3);opacity:.8;max-width:520px;
+    line-height:1.6}
   .hero-stats{margin-top:74px;display:grid;grid-template-columns:repeat(4,1fr);
     border-top:1px solid var(--line);max-width:860px;margin-left:auto;margin-right:auto}
   .hs{padding:26px 8px 0;position:relative;text-align:center}
@@ -475,6 +490,9 @@
       width:100%;max-width:340px;margin-left:auto;margin-right:auto;
       margin-top:32px;gap:8px}
     .hero-bar .btn{width:100%;justify-content:center}
+    .hero-cmd{margin-top:24px;width:100%}
+    .hc-box{width:100%;justify-content:space-between;overflow-x:auto}
+    .hc-box code{font-size:12.5px}
     .btn-lg{padding:14px 20px;font-size:15px}
 
     .hero{padding:112px 18px 0}
@@ -599,6 +617,14 @@
       <button class="btn btn-light btn-lg" onclick="downloadZip()"><svg><use href="#i-dl"/></svg><span id="hero-dl"></span></button>
       <button class="btn btn-line btn-lg" onclick="openInstall()"><span id="hero-ins"></span><svg><use href="#i-arrow-r"/></svg></button>
     </div>
+    <div class="hero-cmd">
+      <p class="hc-lead" id="hc-lead"></p>
+      <div class="hc-box glass" onclick="copyText(INSTALL_CMD)" title="">
+        <code id="hc-code"></code>
+        <span class="hc-cpy"><svg><use href="#i-copy"/></svg></span>
+      </div>
+      <p class="hc-note" id="hc-note"></p>
+    </div>
     <div class="hero-stats">
       <div class="hs"><b id="hs-atoms">6</b><span id="st-atoms"></span></div>
       <div class="hs"><b id="hs-q"></b><span id="st-q"></span></div>
@@ -695,6 +721,8 @@ const I18N={
   zh:{
     heroL1:"完成 AI 产品经理工作", heroL2:"AI 需要学会的所有技能",
     dl:"下载套件", dlBig:"下载套件", howInstall:"怎么装到我的 AI",
+    hcLead:"或者一条命令装好", 
+    hcNote:"点击复制。也可以把这行直接发给你的 AI，让它自己装。支持 Claude Code、Cursor、Codex 等 70 多个宿主。",
     statAtoms:"个技能，可单独调用", statQ:"静态检查通过", statDl:"次下载", statVer:"当前版本",
     tabs:["做什么","技能","安装","质量","评测","更新","反馈","鸣谢"],
     whatIs:"这是什么", whatJob:"你现在要做哪件事", before:"开始之前",
@@ -711,7 +739,7 @@ const I18N={
     skillList:"技能清单", tagOrch:"编排者", tagNew:"新建", tagExt:"外部 · 未改",
     insTitle:"一条命令装好，不需要额外配置", zipMeta:"45 个文件 · 100K · 纯 Markdown 与 shell，无二进制",
     dlShort:"下载",
-    insNote:"这套东西本体是 Markdown，不绑定任何一家宿主。只要你的 Agent 能读本地文件，最后一种装法就一定成立；前两种只是更省事。",
+    insNote:"懒得敲命令的话，把第一条直接发给你的 AI，说一句「帮我装上这个」就行。<br>本体是 Markdown，不绑定任何一家宿主——只要 Agent 能读本地文件，最后一种装法就一定成立。",
     qcOverview:"结果概览", qcWhen:"检查于", qcPassed:"必检项通过",
     p0:"P0 必须通过", p1:"P1 建议修复", p2:"P2 可选优化",
     allPass:"全部通过", passWord:"通过", todo:"待优化", passSuffix:"通过",
@@ -740,6 +768,8 @@ const I18N={
   en:{
     heroL1:"Everything You Need", heroL2:"as an AI PM",
     dl:"Download", dlBig:"Download", howInstall:"How to install it",
+    hcLead:"Or install with one command",
+    hcNote:"Click to copy. You can also paste this line to your AI and let it install itself. Works with Claude Code, Cursor, Codex and 70+ other hosts.",
     statAtoms:"skills, each callable on its own", statQ:"static checks passed", statDl:"downloads", statVer:"current version",
     tabs:["Overview","Skills","Install","Quality","Eval","Changelog","Feedback","Credits"],
     whatIs:"What this is", whatJob:"What are you trying to do", before:"Before you start",
@@ -757,7 +787,7 @@ const I18N={
     insTitle:"One command, no extra configuration",
     zipMeta:"45 files · 100K · plain Markdown and shell, no binaries",
     dlShort:"Download",
-    insNote:"This kit is just Markdown; it is not tied to any single host. As long as your agent can read local files, the last method always works — the first two are simply more convenient.",
+    insNote:"Too lazy to type? Paste the first command to your AI and say \"install this for me\".<br>The kit is just Markdown and is not tied to any host — as long as your agent can read local files, the last method always works.",
     qcOverview:"Results", qcWhen:"checked on", qcPassed:"required checks passed",
     p0:"P0 must pass", p1:"P1 should fix", p2:"P2 optional",
     allPass:"all passed", passWord:"pass", todo:"open", passSuffix:"passed",
@@ -1133,6 +1163,8 @@ const API_BASE = 'https://eynap-api.chenjy4.workers.dev';
 const GH_REPO = 'AntaresYuan/eynap';
 const GH_TAG  = 'v2.0.0';
 const GH_ASSET= 'eynap-2.0.0.zip';
+/* 一条命令装全五个技能。-y 让 CLI 默认全选技能与宿主，不必再写 --skill '*' */
+const INSTALL_CMD = 'npx skills add AntaresYuan/eynap -y';
 const RELEASE_URL = `https://github.com/${GH_REPO}/releases/download/${GH_TAG}/${GH_ASSET}`;
 let S=null, myRate={feature:5,effect:5,stability:5};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -1343,6 +1375,7 @@ function render(){
   $$('.ns-item').forEach((b,i)=>b.textContent=t.tabs[i]);
   syncNavMenu();
   set('#nav-dl',t.dl); set('#hero-dl',t.dlBig); set('#hero-ins',t.howInstall);
+  set('#hc-lead',t.hcLead); set('#hc-code',INSTALL_CMD); set('#hc-note',t.hcNote);
   set('#hero-l1',t.heroL1); set('#hero-l2',t.heroL2);
   set('#tagline',pick(S.plugin,'tagline'));
   set('#st-atoms',t.statAtoms); set('#st-q',t.statQ); set('#st-dl',t.statDl); set('#st-ver',t.statVer);
