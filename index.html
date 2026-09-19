@@ -522,6 +522,13 @@
     /* 页脚链接一行排不下，换行并左对齐 */
     .foot-links{margin-left:0;gap:14px 18px;font-size:13px}
     .foot-in{gap:18px}
+
+    /* 技能卡片：窄屏下横向 flex 挤不下，改上下排 */
+    .arow{padding:15px 16px;gap:11px}
+    .arow h4{font-size:14.5px}
+    .arow p{font-size:13px;word-break:break-word}
+    .arow .path{margin-left:0;margin-top:8px}
+    .arow code{font-size:11.5px;word-break:break-all}
   }
 
   /* 极窄屏：iPhone SE 一档 */
@@ -585,10 +592,8 @@
   <div class="logo"><span class="wm">Eynap</span></div>
   <div class="tabs">
     <button class="tab active" data-p="overview"></button>
-    <button class="tab" data-p="detail"></button>
     <button class="tab" data-p="install"></button>
     <button class="tab" data-p="quality"></button>
-    <button class="tab" data-p="eval"></button>
     <button class="tab" data-p="versions"></button>
     <button class="tab" data-p="reviews"></button>
     <button class="tab" data-p="credits"></button>
@@ -603,10 +608,8 @@
 </nav>
 <div class="navsheet glass" id="navsheet">
   <button class="ns-item" data-p="overview"></button>
-  <button class="ns-item" data-p="detail"></button>
   <button class="ns-item" data-p="install"></button>
   <button class="ns-item" data-p="quality"></button>
-  <button class="ns-item" data-p="eval"></button>
   <button class="ns-item" data-p="versions"></button>
   <button class="ns-item" data-p="reviews"></button>
   <button class="ns-item" data-p="credits"></button>
@@ -651,11 +654,8 @@
         <div class="acc-body"><ul id="list-pre"></ul></div></div>
       <div class="acc"><div class="acc-head"><span id="h-io"></span><span class="caret"><svg><use href="#i-chev"/></svg></span></div>
         <div class="acc-body"><ul id="list-io"></ul></div></div>
-    </section>
 
-    <!-- 6 个技能 -->
-    <section class="pane" id="pane-detail">
-      <div class="sect-h" id="h-flow"></div>
+      <div class="sect-h" style="margin-top:38px" id="h-flow"></div>
       <div class="flow" id="flow"></div>
       <p class="flow-note" id="flow-note"></p>
       <div class="sect-h" style="margin-top:34px" id="h-skills"></div>
@@ -678,14 +678,12 @@
       <div id="ver-list"></div>
     </section>
 
-    <!-- 评测 -->
-    <section class="pane" id="pane-eval">
+    <!-- 评测结果：静态检查 + 动态评测 -->
+    <section class="pane" id="pane-quality">
+      <div id="quality-body"></div>
       <div class="eval-bar" id="eval-bar"></div>
       <div id="eval-body"></div>
     </section>
-
-    <!-- 质量检查 -->
-    <section class="pane" id="pane-quality"></section>
 
     <!-- 评价 -->
     <section class="pane" id="pane-reviews"></section>
@@ -728,7 +726,8 @@ const I18N={
     hcLead:"或者一条命令装好", 
     hcNote:"点击复制。也可以把这行直接发给你的 AI，让它自己装。支持 Claude Code、Cursor、Codex 等 70 多个宿主。",
     statAtoms:"个技能，可单独调用", statQ:"静态检查通过", statDl:"次下载", statVer:"当前版本",
-    tabs:["概述","技能","安装","质量","评测","更新","反馈","鸣谢"],
+    tabs:["技能概述","安装方法","评测结果","版本更新","用户反馈","鸣谢"],
+    secStatic:"静态检查：已经跑过的", secDynamic:"动态评测：还没跑的",
     whatIs:"这是什么", whatJob:"你现在要做哪件事", before:"开始之前",
     pre:"前置条件", io:"输入与产出",
     preList:["云文档能力<b>不预装</b>：默认写本地 Markdown，第一次需要写到云上时会问你用哪家，再按需装后端。",
@@ -775,7 +774,8 @@ const I18N={
     hcLead:"Or install with one command",
     hcNote:"Click to copy. You can also paste this line to your AI and let it install itself. Works with Claude Code, Cursor, Codex and 70+ other hosts.",
     statAtoms:"skills, each callable on its own", statQ:"static checks passed", statDl:"downloads", statVer:"current version",
-    tabs:["Overview","Skills","Install","Quality","Eval","Changelog","Feedback","Credits"],
+    tabs:["Overview","Install","Results","Changelog","Feedback","Credits"],
+    secStatic:"Static checks — already run", secDynamic:"Dynamic evaluation — not run yet",
     whatIs:"What this is", whatJob:"What are you trying to do", before:"Before you start",
     pre:"Prerequisites", io:"Input and output",
     preList:["Cloud-document support is <b>not bundled</b>: it writes local Markdown by default, and asks which provider you use the first time you need to publish.",
@@ -1465,6 +1465,7 @@ function renderEval(){
   const t=T(), e=S.dynamicEval;
   $('#eval-bar').innerHTML='';
   $('#eval-body').innerHTML=`
+    <div class="sect-h" style="margin-top:40px">${t.secDynamic}</div>
     <div class="planned"><h3>${esc(pick(e,'statusLabel'))}</h3><p>${esc(pick(e,'note'))}</p></div>
     <div class="sect-h">${t.evDesign}</div>
     <table class="evd"><thead><tr>${t.evH.map(x=>`<th>${x}</th>`).join('')}</tr></thead>
@@ -1480,7 +1481,8 @@ function renderQuality(){
     <div class="dv">${d.pass}/${d.total}</div></div>`;
   const cnt=g=>g.items.filter(d=>d.pass>=d.total).length;
   const label=g=>g.items.every(d=>d.pass>=d.total)?t.allPass:`${cnt(g)}/${g.items.length} ${t.passSuffix}`;
-  $('#pane-quality').innerHTML=`
+  $('#quality-body').innerHTML=`
+    <div class="sect-h">${t.secStatic}</div>
     <div class="qc-top"><span class="t">${t.qcOverview}</span><span class="when">${t.qcWhen} ${q.date.replace(/-/g,'/')}</span></div>
     <div class="qc-overview">
       <div class="qc-num"><span class="n">${q.passed}/${q.total}</span>
