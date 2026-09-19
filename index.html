@@ -650,7 +650,7 @@
     <section class="pane" id="pane-install">
       <div class="sect-h" id="h-ins"></div>
       <div class="dlbox">
-        <div><b>eynap-2.0.0.zip</b><span class="dlmeta" id="zip-meta"></span></div>
+        <div><b>eynap-3.0.0.zip</b><span class="dlmeta" id="zip-meta"></span></div>
         <button class="btn btn-light" onclick="downloadZip()"><svg><use href="#i-dl"/></svg><span id="ins-dl"></span></button>
       </div>
       <div class="installs" id="installs"></div>
@@ -715,16 +715,15 @@ const I18N={
     whatIs:"这是什么", whatJob:"你现在要做哪件事", before:"开始之前",
     pre:"前置条件", io:"输入与产出",
     preList:["云文档能力<b>不预装</b>：默认写本地 Markdown，第一次需要写到云上时会问你用哪家，再按需装后端。",
-      "设计与原型那一环交给外部技能 <code>product-feature-helper</code>，本套件不含它——没有它，前四环照常跑完，只是产不出可点原型和带标注的交互说明。",
-      "横切规则只在 <code>shared/</code> 存一份，部署时要一并放置，不要往各技能里复制。"],
+      "设计交付那一环会跑脚本（截图、标注、打包），需要 Node 与 Python；只用前面几环的话不需要。"],
     ioList:["单点下单：直接说要做什么。没有上游文档时，技能会一次问齐背景和对象，不会挤牙膏。",
       "连续使用：在一个项目目录里进行，各技能通过 <code>STATE.md</code> 交接，不必重复交代背景。",
       "产出落到 <code>docs/</code> 对应目录；没有项目目录时直接在对话里给你。"],
     flowTitle:"从头做一个产品时，它们这样接力",
-    flow:["调研","立项","PRD","实体","设计交付"],
-    flowNote:"但没人要求你从头走。每个技能都能单独下单，缺上游时它自己会把必要信息问齐。",
+    flow:["立项","流程","实体","设计交付","PRD"],
+    flowNote:"PRD 排在最后，是因为它的旅程、实体、交互三章本来就是前面几环的产出——它是拼出来的，不是先写好再填。调研按需插入，不是必经环节。<br>也没人要求你从头走：每个技能都能单独下单，缺上游时它自己会把必要信息问齐。",
     tagOrch:"编排者", tagNew:"新建", tagExt:"外部 · 未改",
-    insTitle:"一条命令装好，不需要额外配置", zipMeta:"45 个文件 · 100K · 纯 Markdown 与 shell，无二进制",
+    insTitle:"一条命令装好，不需要额外配置", zipMeta:"128 个文件 · 413K · Markdown 为主，含设计交付脚本",
     dlShort:"下载",
     insNote:"懒得敲命令的话，把第一条直接发给你的 AI，说一句「帮我装上这个」就行。<br>本体是 Markdown，不绑定任何一家宿主——只要 Agent 能读本地文件，最后一种装法就一定成立。",
     qcOverview:"结果概览", qcWhen:"检查于", qcPassed:"必检项通过",
@@ -743,7 +742,7 @@ const I18N={
     origAuthor:"原作者", restructBy:"重构",
     contribZh:"",
     footDl:"下载套件", footIns:"安装说明", footQ:"质量检查", footRv:"留下反馈", footCr:"版权与鸣谢",
-    toastCopied:"已复制：", toastDl:"已开始下载 eynap-2.0.0.zip",
+    toastCopied:"已复制：", toastDl:"已开始下载 eynap-3.0.0.zip",
     toastOffDl:"离线模式：请先运行 node server.mjs 再下载",
     toastOffRv:"离线模式：请先运行 node server.mjs 再提交",
     toastNeedText:"先写点内容再提交", toastSaved:"反馈已提交，谢谢", toastFail:"提交失败",
@@ -763,17 +762,16 @@ const I18N={
     whatIs:"What this is", whatJob:"What are you trying to do", before:"Before you start",
     pre:"Prerequisites", io:"Input and output",
     preList:["Cloud-document support is <b>not bundled</b>: it writes local Markdown by default, and asks which provider you use the first time you need to publish.",
-      "Design and prototyping are delegated to the external skill <code>product-feature-helper</code>, which is not bundled here. Without it the first four stages still run end to end — you just will not get a clickable prototype or annotated interaction notes.",
       "Cross-cutting rules live in <code>shared/</code> once; ship that folder alongside, and never copy it into individual skills."],
     ioList:["One-off use: just say what you need. With no upstream document, the skill asks for the background and objects in one go.",
       "Continuous use: work inside a project directory; skills hand off through <code>STATE.md</code>, so you never restate context.",
       "Output lands in the matching folder under <code>docs/</code>, or comes back in the conversation if there is no project directory."],
     flowTitle:"Building a product from scratch, they run in this order",
-    flow:["Research","Framing","PRD","Entity","Handoff"],
-    flowNote:"Nothing requires you to start at the beginning. Each skill can be called on its own and will ask for what it is missing.",
+    flow:["Framing","Flow","Entity","Handoff","PRD"],
+    flowNote:"The PRD comes last because its journey, entity and interaction chapters <em>are</em> the outputs of the stages before it — assembled, not drafted and then filled in. Research is inserted when needed, not run first.<br>And nothing requires you to start at the beginning: each skill can be called on its own and will ask for what it is missing.",
     tagOrch:"orchestrator", tagNew:"new", tagExt:"external · unmodified",
     insTitle:"One command, no extra configuration",
-    zipMeta:"45 files · 100K · plain Markdown and shell, no binaries",
+    zipMeta:"128 files · 413K · mostly Markdown, plus the design-delivery scripts",
     dlShort:"Download",
     insNote:"Too lazy to type? Paste the first command to your AI and say \"install this for me\".<br>The kit is just Markdown and is not tied to any host — as long as your agent can read local files, the last method always works.",
     qcOverview:"Results", qcWhen:"checked on", qcPassed:"required checks passed",
@@ -792,7 +790,7 @@ const I18N={
     contribTitle:"Want to contribute", viewRepo:"Original repository", viewLicense:"Full license text",
     origAuthor:"original author", restructBy:"restructured by",
     footDl:"Download", footIns:"Install", footQ:"Quality", footRv:"Feedback", footCr:"Credits",
-    toastCopied:"Copied: ", toastDl:"Downloading eynap-2.0.0.zip",
+    toastCopied:"Copied: ", toastDl:"Downloading eynap-3.0.0.zip",
     toastOffDl:"Offline: run node server.mjs first, then download",
     toastOffRv:"Offline: run node server.mjs first, then submit",
     toastNeedText:"Write something first", toastSaved:"Thanks, feedback submitted", toastFail:"Submission failed",
@@ -809,13 +807,13 @@ const I18N={
     "id": "ai-pm-suite",
     "name": "Everything You Need as an AI PM",
     "identifier": "ai-pm-suite",
-    "latestVersion": "2.0.0",
-    "versionDate": "2026-09-14",
-    "tagline": "调研、立项、PRD、实体状态机、设计交付——把这五件事的做法写成 AI 能读的技能，它才接得住产品经理的活。",
+    "latestVersion": "3.0.0",
+    "versionDate": "2026-09-19",
+    "tagline": "立项、流程、实体、设计交付、PRD——把这几件事的做法写成 AI 能读的技能，它才接得住产品经理的活。",
     "owner": "yuanchenjie.antares",
     "internal": true,
-    "downloadFile": "eynap-2.0.0.zip",
-    "whatIsThis": "一个 AI 产品经理技能套件：1 个编排者负责判定阶段、路由技能、检查关卡；5 个原子技能分别承接调研、立项、PRD、实体状态机、设计交付；外加一份被所有技能引用的共享地基（记忆、偏好、命名、协议、宿主差异、措辞规范）。想做哪件直接调用对应技能，不必跑完整条流水线。",
+    "downloadFile": "eynap-3.0.0.zip",
+    "whatIsThis": "一个 AI 产品经理技能套件：1 个编排者负责判定阶段、路由技能、检查关卡；6 个技能分别承接调研、立项、流程、实体、设计交付与 PRD 组装；外加一份被所有技能引用的共享地基（记忆、偏好、命名、协议、宿主差异、措辞规范）。想做哪件直接调用对应技能，不必跑完整条流水线。",
     "qualityDate": "2026-09-15",
     "taglineEn": "Research, framing, PRD, entity state machines, design handoff — write down how each of these is done, in a form an AI can read. That is what it takes for AI to carry a PM's work.",
     "whatIsThisEn": "An AI product-manager skill kit: one orchestrator that decides the stage, routes to a skill and checks the gate; five skills covering research, framing, PRD, entity state machines and design handoff; plus one shared foundation every skill reads (memory, preferences, naming, protocols, host differences, wording rules). Call the one you need directly — no need to run the whole pipeline."
@@ -823,69 +821,76 @@ const I18N={
   "downloads": 0,
   "files": [
     {
-      "id": "ai-pm",
-      "kind": "orchestrator",
-      "title": "ai-pm",
-      "version": "2.0.0",
-      "lines": 140,
-      "path": "skills/ai-pm/SKILL.md",
-      "descEn": "Decides the stage, routes to a skill, checks the gate. Produces no deliverable of its own."
+      "id": "ai-pm", "kind": "orchestrator", "title": "ai-pm",
+      "path": "skills/ai-pm/SKILL.md", "lines": 150,
+      "desc": "编排者。判定当前在哪一环、路由到对应技能、检查关卡",
+      "descEn": "The orchestrator: works out which stage you are in, routes to the right skill, checks the gates."
     },
     {
-      "id": "pm-research",
-      "kind": "atom",
-      "isNew": true,
-      "title": "pm-research",
-      "version": "2.0.0",
-      "lines": 149,
-      "path": "skills/pm-research/SKILL.md",
-      "out": "04_RESOURCES/",
-      "descEn": "Purpose-first research: funnel walkthrough plus single-variable controlled experiments, with evidence graded."
+      "id": "pm-research", "title": "pm-research",
+      "path": "skills/pm-research/SKILL.md", "lines": 152, "out": "04_RESOURCES/",
+      "desc": "用户调研与竞品分析，按需调用而非必经环节",
+      "descEn": "User research and competitive teardowns — called on demand, not a mandatory stage."
     },
     {
-      "id": "pm-value",
-      "kind": "atom",
-      "title": "pm-value",
-      "version": "2.0.0",
-      "lines": 84,
-      "path": "skills/pm-value/SKILL.md",
-      "out": "01_STRATEGY/",
-      "descEn": "Mines the value anchor from real stories, reality-checks it, and converges on scope."
+      "id": "pm-value", "title": "pm-value",
+      "path": "skills/pm-value/SKILL.md", "lines": 87, "out": "01_STRATEGY/",
+      "desc": "价值锚点、现实检验、In/Out scope",
+      "descEn": "Value anchor, reality check, in/out scope."
     },
     {
-      "id": "pm-prd",
-      "kind": "atom",
-      "title": "pm-prd",
-      "version": "2.0.0",
-      "lines": 117,
-      "path": "skills/pm-prd/SKILL.md",
-      "out": "02_PRD/",
-      "descEn": "Journeys, MVP, page structure; goals split into product and algorithm metrics; four-column interaction table."
+      "id": "pm-flow", "isNew": true, "title": "pm-flow",
+      "path": "skills/pm-flow/SKILL.md", "lines": 110, "out": "02_PRD/flow.md",
+      "desc": "关键用户旅程、MVP 范围、Screen Tree。v3 从 pm-prd 里拆出来",
+      "descEn": "Critical user journeys, MVP scope, screen tree. Split out of pm-prd in v3."
     },
     {
-      "id": "pm-entity",
-      "kind": "atom",
-      "title": "pm-entity",
-      "version": "2.0.0",
-      "lines": 135,
-      "path": "skills/pm-entity/SKILL.md",
-      "out": "02_PRD/",
-      "descEn": "State tables, forward and backward transitions, per-state permissions and field behaviour."
+      "id": "pm-entity", "title": "pm-entity",
+      "path": "skills/pm-entity/SKILL.md", "lines": 138, "out": "02_PRD/entities.md",
+      "desc": "状态表与正反向转移矩阵，读 flow.md 产出独立实体文档",
+      "descEn": "State tables and forward/backward transition matrices; reads flow.md, writes its own entity doc."
     },
     {
-      "id": "pfh",
-      "kind": "external",
-      "title": "product-feature-helper",
-      "external": true,
-      "out": "03_DESIGN/",
-      "descEn": "Extracts tokens from a live page, injects a clickable prototype, produces annotated interaction notes."
+      "id": "pfh", "title": "product-feature-helper",
+      "path": "skills/product-feature-helper/SKILL.md", "lines": 322, "out": "03_DESIGN/",
+      "desc": "真实页面提取 token、注入可点原型、带标注截图的交互说明。v3 并入套件",
+      "descEn": "Extracts tokens from a live page, injects a clickable prototype, produces annotated interaction notes. Bundled in v3."
+    },
+    {
+      "id": "pm-prd", "title": "pm-prd",
+      "path": "skills/pm-prd/SKILL.md", "lines": 101, "out": "02_PRD/",
+      "desc": "最后组装：按骨架拼接上游文件，补写 PRD 独有章节",
+      "descEn": "The final assembly: stitches the upstream files into the skeleton and writes the chapters only a PRD has."
     }
   ],
   "versions": [
     {
+      "version": "3.0.0",
+      "current": true,
+      "date": "2026-09-19",
+      "title": "拆出 pm-flow，PRD 改为最后组装",
+      "titleEn": "pm-flow split out; the PRD is assembled last",
+      "author": "yuanchenjie.antares",
+      "commits": [
+        "新增 pm-flow：关键用户旅程、MVP 范围、Screen Tree，产出 docs/02_PRD/flow.md",
+        "pm-entity 改读 flow.md，产出独立的 entities.md，不再直接写进 PRD",
+        "pm-prd 改为组装：按骨架拼接上游文件，补写 PRD 独有章节；上游缺失时先告知，冲突时指回该改的文件",
+        "链路顺序改为 value → flow → entity → design → prd，research 改为按需调用",
+        "product-feature-helper 并入套件，设计与原型不再是外部依赖",
+        "不兼容变更：/pm-prd 不再负责梳理流程，那部分归 pm-flow"
+      ],
+      "commitsEn": [
+        "New pm-flow: critical user journeys, MVP scope, screen tree → docs/02_PRD/flow.md",
+        "pm-entity now reads flow.md and writes its own entities.md instead of editing the PRD",
+        "pm-prd became an assembler: it stitches upstream files into the skeleton, tells you what is missing, and points back at the file to fix when two upstream docs disagree",
+        "Chain order is now value → flow → entity → design → prd; research is called on demand",
+        "product-feature-helper is bundled — design and prototyping are no longer an external dependency",
+        "Breaking: /pm-prd no longer works out the flow; that belongs to pm-flow"
+      ]
+    },
+    {
       "version": "2.0.0",
       "date": "2026-09-14 21:00:00",
-      "current": true,
       "title": "重构为编排者 + 原子",
       "commits": [
         "Merge 'feat/atoms' into 'main'",
@@ -1149,8 +1154,8 @@ const API_BASE = 'https://eynap-api.chenjy4.workers.dev';
 /* 下载走 GitHub Release：自带官方下载统计，零部署。
    评价服务另需 worker/（见 worker/README.md）。 */
 const GH_REPO = 'AntaresYuan/eynap';
-const GH_TAG  = 'v2.0.0';
-const GH_ASSET= 'eynap-2.0.0.zip';
+const GH_TAG  = 'v3.0.0';
+const GH_ASSET= 'eynap-3.0.0.zip';
 /* 一条命令装全五个技能。-y 让 CLI 默认全选技能与宿主，不必再写 --skill '*' */
 const INSTALL_CMD = 'npx skills add AntaresYuan/eynap -y';
 const RELEASE_URL = `https://github.com/${GH_REPO}/releases/download/${GH_TAG}/${GH_ASSET}`;
@@ -1379,17 +1384,19 @@ function render(){
 
   const JOBS=LANG==='zh'?[
     {q:'有个想法很模糊，要收敛成能立项的文档',cmd:'/pm-value',n:'价值锚点 → 现实检验 → 范围',out:'01_STRATEGY/'},
-    {q:'要写 PRD，或者把用户流程讲清楚',cmd:'/pm-prd',n:'六段骨架 + 交互四列表',out:'02_PRD/'},
+    {q:'要理清用户旅程、MVP 范围和页面结构',cmd:'/pm-flow',n:'CUJ + 范围切分 + Screen Tree',out:'02_PRD/flow.md'},
+    {q:'上游都齐了，要组装成交给研发的 PRD',cmd:'/pm-prd',n:'按骨架拼接，不重新梳理流程',out:'02_PRD/'},
     {q:'一个业务对象的状态、权限、字段没理清',cmd:'/pm-entity',n:'状态表 + 正反向转移',out:'02_PRD/'},
     {q:'要做调研或对标，还想量化对方效果',cmd:'/pm-research',n:'目的先行 + 对照实验',out:'04_RESOURCES/'},
-    {q:'要把方案变成能点的原型和交互说明',cmd:'@product-feature-helper',n:'外部技能，不在本套件内',out:'03_DESIGN/'},
+    {q:'要把方案变成能点的原型和交互说明',cmd:'@product-feature-helper',n:'套件内第 7 个技能',out:'03_DESIGN/'},
     {q:'从零做一个新产品，不知道先干哪步',cmd:'从头做一个产品',n:'编排者按阶段路由，自己不产出文档'}
   ]:[
     {q:'A fuzzy idea that needs to become a document you can get approved',cmd:'/pm-value',n:'value anchor → reality check → scope',out:'01_STRATEGY/'},
-    {q:'Writing a PRD, or making a user flow clear',cmd:'/pm-prd',n:'six-part skeleton + interaction table',out:'02_PRD/'},
+    {q:'Working out user journeys, MVP scope and page structure',cmd:'/pm-flow',n:'CUJs + scope cuts + screen tree',out:'02_PRD/flow.md'},
+    {q:'Upstream is ready; assemble the PRD for engineering',cmd:'/pm-prd',n:'stitches the skeleton, does not re-do the flow',out:'02_PRD/'},
     {q:'States, permissions and fields of a business object are unclear',cmd:'/pm-entity',n:'state table + transitions',out:'02_PRD/'},
     {q:'Research or a competitive teardown, with their results quantified',cmd:'/pm-research',n:'purpose first + controlled experiment',out:'04_RESOURCES/'},
-    {q:'Turning a plan into a clickable prototype and interaction notes',cmd:'@product-feature-helper',n:'external skill, not part of this kit',out:'03_DESIGN/'},
+    {q:'Turning a plan into a clickable prototype and interaction notes',cmd:'@product-feature-helper',n:'the seventh skill in the kit',out:'03_DESIGN/'},
     {q:'Building something new with no idea which step comes first',cmd:'build a product from scratch',n:'routes by stage; produces no document itself'}
   ];
   $('#jobs').innerHTML=JOBS.map(j=>`<div class="job" onclick="copyText('${j.cmd}')">
@@ -1400,7 +1407,7 @@ function render(){
 
   // 技能
   set('#h-flow',t.flowTitle); set('#flow-note',t.flowNote);
-  const keys=['research','value','prd','entity','helper'];
+  const keys=['value','flow','entity','design','prd'];
   $('#flow').innerHTML=t.flow.map((f,i)=>
     `<span class="fm"><b>${f}</b><span class="k">${keys[i]}</span></span>`+
     (i<4?'<span class="ar"><svg><use href="#i-arrow-r"/></svg></span>':'')).join('');
