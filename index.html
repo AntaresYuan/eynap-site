@@ -732,7 +732,7 @@ const I18N={
     whatIs:"这是什么", whatJob:"你现在要做哪件事", before:"开始之前",
     pre:"前置条件", io:"输入与产出",
     preList:["云文档能力<b>不预装</b>：默认写本地 Markdown，第一次需要写到云上时会问你用哪家，再按需装后端。",
-      "设计与原型环节依赖外部技能 <code>product-feature-helper</code>，需另行安装，本套件不内置。",
+      "设计与原型那一环交给外部技能 <code>product-feature-helper</code>，本套件不含它——没有它，前四环照常跑完，只是产不出可点原型和带标注的交互说明。",
       "横切规则只在 <code>shared/</code> 存一份，部署时要一并放置，不要往各技能里复制。"],
     ioList:["单点下单：直接说要做什么。没有上游文档时，技能会一次问齐背景和对象，不会挤牙膏。",
       "连续使用：在一个项目目录里进行，各技能通过 <code>STATE.md</code> 交接，不必重复交代背景。",
@@ -779,7 +779,7 @@ const I18N={
     whatIs:"What this is", whatJob:"What are you trying to do", before:"Before you start",
     pre:"Prerequisites", io:"Input and output",
     preList:["Cloud-document support is <b>not bundled</b>: it writes local Markdown by default, and asks which provider you use the first time you need to publish.",
-      "Design and prototyping rely on the external skill <code>product-feature-helper</code>, installed separately — not included here.",
+      "Design and prototyping are delegated to the external skill <code>product-feature-helper</code>, which is not bundled here. Without it the first four stages still run end to end — you just will not get a clickable prototype or annotated interaction notes.",
       "Cross-cutting rules live in <code>shared/</code> once; ship that folder alongside, and never copy it into individual skills."],
     ioList:["One-off use: just say what you need. With no upstream document, the skill asks for the background and objects in one go.",
       "Continuous use: work inside a project directory; skills hand off through <code>STATE.md</code>, so you never restate context.",
@@ -1398,14 +1398,14 @@ function render(){
     {q:'要写 PRD，或者把用户流程讲清楚',cmd:'/pm-prd',n:'六段骨架 + 交互四列表'},
     {q:'一个业务对象的状态、权限、字段没理清',cmd:'/pm-entity',n:'状态表 + 正反向转移'},
     {q:'要做调研或对标，还想量化对方效果',cmd:'/pm-research',n:'目的先行 + 对照实验'},
-    {q:'要把方案变成能点的原型和交互说明',cmd:'@product-feature-helper',n:'外部技能，需另装'},
+    {q:'要把方案变成能点的原型和交互说明',cmd:'@product-feature-helper',n:'外部技能，不在本套件内'},
     {q:'从零做一个新产品，不知道先干哪步',cmd:'从头做一个产品',n:'编排者按阶段路由'}
   ]:[
     {q:'A fuzzy idea that needs to become a document you can get approved',cmd:'/pm-value',n:'value anchor → reality check → scope'},
     {q:'Writing a PRD, or making a user flow clear',cmd:'/pm-prd',n:'six-part skeleton + interaction table'},
     {q:'States, permissions and fields of a business object are unclear',cmd:'/pm-entity',n:'state table + transitions'},
     {q:'Research or a competitive teardown, with their results quantified',cmd:'/pm-research',n:'purpose first + controlled experiment'},
-    {q:'Turning a plan into a clickable prototype and interaction notes',cmd:'@product-feature-helper',n:'external skill, installed separately'},
+    {q:'Turning a plan into a clickable prototype and interaction notes',cmd:'@product-feature-helper',n:'external skill, not part of this kit'},
     {q:'Building something new with no idea which step comes first',cmd:'build a product from scratch',n:'the orchestrator routes by stage'}
   ];
   $('#jobs').innerHTML=JOBS.map(j=>`<div class="job" onclick="copyText('${j.cmd}')">
