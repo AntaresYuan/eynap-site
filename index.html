@@ -285,22 +285,14 @@
   .acc-body b{color:var(--ink)}
 
   /* ---------- 技能行 ---------- */
-  .atomlist{display:grid;gap:10px}
-  .arow{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:18px 21px;
-    display:flex;gap:15px;align-items:flex-start;transition:.16s}
-  .arow:hover{border-color:rgba(255,255,255,.18)}
-  .arow .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;color:#fff}
-  .arow .ic svg{width:16px;height:16px}
-  .ic.orch{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.14)}
-  .ic.research{background:#2f6bff}.ic.value{background:#159b43}.ic.prd{background:#c67810}
-  .ic.entity{background:#6f4bd8}.ic.design{background:#c8415f}
-  .arow h4{font-size:15px;font-weight:650;display:flex;gap:8px;align-items:center;flex-wrap:wrap;letter-spacing:-.008em}
-  .arow p{font-size:13.5px;color:var(--ink-2);margin-top:5px;line-height:1.6}
+  /* 产出落点：原技能清单里的信息，合并进 jobs 卡片 */
+  .jout{margin-top:9px}
+  .jout code{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);
+    background:rgba(255,255,255,.05);padding:2px 7px;border-radius:5px}
   .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px}
   .tag.new{background:rgba(35,195,67,.16);color:#4ade6a}
   .tag.ext{background:rgba(255,255,255,.08);color:var(--ink-2)}
   .tag.orch{background:rgba(64,128,255,.18);color:#87abff}
-  .arow .path{margin-left:auto;font-size:12px;color:var(--ink-3);white-space:nowrap;padding-top:2px}
 
   .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center}
   .fm{font-size:12.5px;border:1px solid var(--line);border-radius:9px;padding:8px 14px;
@@ -523,12 +515,6 @@
     .foot-links{margin-left:0;gap:14px 18px;font-size:13px}
     .foot-in{gap:18px}
 
-    /* 技能卡片：窄屏下横向 flex 挤不下，改上下排 */
-    .arow{padding:15px 16px;gap:11px}
-    .arow h4{font-size:14.5px}
-    .arow p{font-size:13px;word-break:break-word}
-    .arow .path{margin-left:0;margin-top:8px}
-    .arow code{font-size:11.5px;word-break:break-all}
   }
 
   /* 极窄屏：iPhone SE 一档 */
@@ -658,8 +644,6 @@
       <div class="sect-h" style="margin-top:38px" id="h-flow"></div>
       <div class="flow" id="flow"></div>
       <p class="flow-note" id="flow-note"></p>
-      <div class="sect-h" style="margin-top:34px" id="h-skills"></div>
-      <div class="atomlist" id="atoms"></div>
     </section>
 
     <!-- 安装 -->
@@ -739,7 +723,7 @@ const I18N={
     flowTitle:"从头做一个产品时，它们这样接力",
     flow:["调研","立项","PRD","实体","设计交付"],
     flowNote:"但没人要求你从头走。每个技能都能单独下单，缺上游时它自己会把必要信息问齐。",
-    skillList:"技能清单", tagOrch:"编排者", tagNew:"新建", tagExt:"外部 · 未改",
+    tagOrch:"编排者", tagNew:"新建", tagExt:"外部 · 未改",
     insTitle:"一条命令装好，不需要额外配置", zipMeta:"45 个文件 · 100K · 纯 Markdown 与 shell，无二进制",
     dlShort:"下载",
     insNote:"懒得敲命令的话，把第一条直接发给你的 AI，说一句「帮我装上这个」就行。<br>本体是 Markdown，不绑定任何一家宿主——只要 Agent 能读本地文件，最后一种装法就一定成立。",
@@ -787,7 +771,7 @@ const I18N={
     flowTitle:"Building a product from scratch, they run in this order",
     flow:["Research","Framing","PRD","Entity","Handoff"],
     flowNote:"Nothing requires you to start at the beginning. Each skill can be called on its own and will ask for what it is missing.",
-    skillList:"The skills", tagOrch:"orchestrator", tagNew:"new", tagExt:"external · unmodified",
+    tagOrch:"orchestrator", tagNew:"new", tagExt:"external · unmodified",
     insTitle:"One command, no extra configuration",
     zipMeta:"45 files · 100K · plain Markdown and shell, no binaries",
     dlShort:"Download",
@@ -1394,43 +1378,32 @@ function render(){
   $('#list-io').innerHTML=t.ioList.map(x=>`<li>${x}</li>`).join('');
 
   const JOBS=LANG==='zh'?[
-    {q:'有个想法很模糊，要收敛成能立项的文档',cmd:'/pm-value',n:'价值锚点 → 现实检验 → 范围'},
-    {q:'要写 PRD，或者把用户流程讲清楚',cmd:'/pm-prd',n:'六段骨架 + 交互四列表'},
-    {q:'一个业务对象的状态、权限、字段没理清',cmd:'/pm-entity',n:'状态表 + 正反向转移'},
-    {q:'要做调研或对标，还想量化对方效果',cmd:'/pm-research',n:'目的先行 + 对照实验'},
-    {q:'要把方案变成能点的原型和交互说明',cmd:'@product-feature-helper',n:'外部技能，不在本套件内'},
-    {q:'从零做一个新产品，不知道先干哪步',cmd:'从头做一个产品',n:'编排者按阶段路由'}
+    {q:'有个想法很模糊，要收敛成能立项的文档',cmd:'/pm-value',n:'价值锚点 → 现实检验 → 范围',out:'01_STRATEGY/'},
+    {q:'要写 PRD，或者把用户流程讲清楚',cmd:'/pm-prd',n:'六段骨架 + 交互四列表',out:'02_PRD/'},
+    {q:'一个业务对象的状态、权限、字段没理清',cmd:'/pm-entity',n:'状态表 + 正反向转移',out:'02_PRD/'},
+    {q:'要做调研或对标，还想量化对方效果',cmd:'/pm-research',n:'目的先行 + 对照实验',out:'04_RESOURCES/'},
+    {q:'要把方案变成能点的原型和交互说明',cmd:'@product-feature-helper',n:'外部技能，不在本套件内',out:'03_DESIGN/'},
+    {q:'从零做一个新产品，不知道先干哪步',cmd:'从头做一个产品',n:'编排者按阶段路由，自己不产出文档'}
   ]:[
-    {q:'A fuzzy idea that needs to become a document you can get approved',cmd:'/pm-value',n:'value anchor → reality check → scope'},
-    {q:'Writing a PRD, or making a user flow clear',cmd:'/pm-prd',n:'six-part skeleton + interaction table'},
-    {q:'States, permissions and fields of a business object are unclear',cmd:'/pm-entity',n:'state table + transitions'},
-    {q:'Research or a competitive teardown, with their results quantified',cmd:'/pm-research',n:'purpose first + controlled experiment'},
-    {q:'Turning a plan into a clickable prototype and interaction notes',cmd:'@product-feature-helper',n:'external skill, not part of this kit'},
-    {q:'Building something new with no idea which step comes first',cmd:'build a product from scratch',n:'the orchestrator routes by stage'}
+    {q:'A fuzzy idea that needs to become a document you can get approved',cmd:'/pm-value',n:'value anchor → reality check → scope',out:'01_STRATEGY/'},
+    {q:'Writing a PRD, or making a user flow clear',cmd:'/pm-prd',n:'six-part skeleton + interaction table',out:'02_PRD/'},
+    {q:'States, permissions and fields of a business object are unclear',cmd:'/pm-entity',n:'state table + transitions',out:'02_PRD/'},
+    {q:'Research or a competitive teardown, with their results quantified',cmd:'/pm-research',n:'purpose first + controlled experiment',out:'04_RESOURCES/'},
+    {q:'Turning a plan into a clickable prototype and interaction notes',cmd:'@product-feature-helper',n:'external skill, not part of this kit',out:'03_DESIGN/'},
+    {q:'Building something new with no idea which step comes first',cmd:'build a product from scratch',n:'routes by stage; produces no document itself'}
   ];
   $('#jobs').innerHTML=JOBS.map(j=>`<div class="job" onclick="copyText('${j.cmd}')">
     <span class="cpz"><svg><use href="#i-copy"/></svg></span>
     <div class="q">${esc(j.q)}</div>
-    <div class="a"><span class="cmd">${esc(j.cmd)}</span><span class="n">${esc(j.n)}</span></div></div>`).join('');
+    <div class="a"><span class="cmd">${esc(j.cmd)}</span><span class="n">${esc(j.n)}</span></div>
+    ${j.out?`<div class="jout"><code>${j.out}</code></div>`:''}</div>`).join('');
 
   // 技能
-  set('#h-flow',t.flowTitle); set('#flow-note',t.flowNote); set('#h-skills',t.skillList);
+  set('#h-flow',t.flowTitle); set('#flow-note',t.flowNote);
   const keys=['research','value','prd','entity','helper'];
   $('#flow').innerHTML=t.flow.map((f,i)=>
     `<span class="fm"><b>${f}</b><span class="k">${keys[i]}</span></span>`+
     (i<4?'<span class="ar"><svg><use href="#i-arrow-r"/></svg></span>':'')).join('');
-  const SKIN={'ai-pm':{ic:'i-cmd',cls:'orch'},'pm-research':{ic:'i-search',cls:'research'},
-    'pm-value':{ic:'i-target',cls:'value'},'pm-prd':{ic:'i-doc',cls:'prd'},
-    'pm-entity':{ic:'i-flow',cls:'entity'},'pfh':{ic:'i-layers',cls:'design'}};
-  $('#atoms').innerHTML=S.files.map(f=>{const k=SKIN[f.id]||{ic:'i-doc',cls:'prd'};return `
-    <div class="arow"><div class="ic ${k.cls}"><svg><use href="#${k.ic}"/></svg></div>
-      <div><h4>${f.title}
-        ${f.kind==='orchestrator'?`<span class="tag orch">${t.tagOrch}</span>`:''}
-        ${f.isNew?`<span class="tag new">${t.tagNew}</span>`:''}
-        ${f.external?`<span class="tag ext">${t.tagExt}</span>`:''}</h4>
-        <p>${esc(pick(f,'desc')||'')} ${f.lines?`（<code>${f.path}</code> · ${f.lines} ${LANG==='zh'?'行':'lines'}）`:''}</p></div>
-      ${f.out?`<div class="path"><code>${f.out}</code></div>`:''}</div>`;}).join('');
-
   // 安装
   set('#h-ins',t.insTitle); set('#zip-meta',t.zipMeta); set('#ins-dl',t.dlShort);
   $('#ins-note').innerHTML=t.insNote;
