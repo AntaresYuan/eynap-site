@@ -126,6 +126,10 @@
   .cbtn svg{width:15px;height:15px}
   .cbtns{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center}
   .cbtns .cbtn{margin-left:0}
+  /* 本套件仓库是主入口，上游是延伸阅读 */
+  .cbtn-primary{background:rgba(255,255,255,.93);color:#0a0c10;
+    border-color:transparent;font-weight:500}
+  .cbtn-primary:hover{background:#fff;border-color:transparent}
   .cnote{font-size:12.5px;color:var(--ink-3);line-height:1.6}
   .lic{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
   .lic-tag{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:13px;font-weight:700;
@@ -1573,11 +1577,14 @@ function renderCredits(){
   const stmt=LANG==='zh'?c.statementZh:c.statementEn;
   const thanks=LANG==='zh'?c.thanksZh:c.thanksEn;
   const contribText=LANG==='zh'
-    ? `原始仓库在 GitHub 上公开，欢迎去那里提 Issue 或 Pull Request——方法论层面的改进，回到源头讨论最合适。`
-    : `The original repository is public on GitHub; issues and pull requests are welcome there — methodology-level changes belong upstream.`;
+    ? `这套技能的仓库在 GitHub 上公开，用下来有什么问题、想加什么，直接去提 Issue 或 Pull Request。<br>
+       如果是方法论本身的改进（比如某个环节该不该存在、顺序对不对），回到<b>原始仓库</b>讨论更合适——那是这套方法的源头。`
+    : `This kit's repository is public on GitHub — open an issue or a pull request for anything you hit or want added.<br>
+       If the change is to the methodology itself (whether a stage should exist, whether the order is right), the <b>upstream repository</b> is the better place — that is where the method came from.`;
+  // 本套件仓库放前面：来贡献的人多半是冲这套东西来的，上游是延伸阅读
   const forkLine=c.contribute.forkRepo
-    ? `<a class="cbtn" href="${c.contribute.forkRepo}" target="_blank" rel="noopener"><svg><use href="#i-git"/></svg>${LANG==='zh'?'本套件仓库':'This kit'}</a>`
-    : `<span class="cnote">${LANG==='zh'?c.contribute.forkRepoNote:'This kit has no public repository yet; it is distributed as a download for now, and the address will be filled in once one exists.'}</span>`;
+    ? `<a class="cbtn cbtn-primary" href="${c.contribute.forkRepo}" target="_blank" rel="noopener"><svg><use href="#i-git"/></svg>${LANG==='zh'?'本套件仓库':'This kit'}</a>`
+    : '';
   $('#pane-credits').innerHTML=`
     <div class="sect-h">${t.creditsTitle}</div>
     <div class="cred">
@@ -1611,8 +1618,8 @@ function renderCredits(){
     <div class="cred">
       <p>${contribText}</p>
       <div class="cbtns">
-        <a class="cbtn" href="${c.contribute.upstreamRepo}" target="_blank" rel="noopener"><svg><use href="#i-git"/></svg>${LANG==='zh'?'原始仓库':'Upstream repo'}</a>
         ${forkLine}
+        <a class="cbtn" href="${c.contribute.upstreamRepo}" target="_blank" rel="noopener"><svg><use href="#i-git"/></svg>${LANG==='zh'?'原始仓库':'Upstream repo'}</a>
       </div>
     </div>`;
 }
